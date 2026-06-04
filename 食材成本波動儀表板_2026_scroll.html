@@ -1,0 +1,1511 @@
+<html lang="zh-TW"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>🥗 食材成本波動儀表板 2026</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=DM+Mono:wght@400;500&display=swap');
+
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --bg:#eef1f8;
+  --surface:#fff;
+  --s2:#f5f7fc;
+  --border:#dde3ef;
+  --text:#1b2540;
+  --muted:#5a6a8a;
+  --faint:#8a9ab8;
+  --green:#0c9060;--gbg:#e8f8f1;--gbd:#9ee6c8;
+  --red:#cc2d3a;--rbg:#fef0f1;--rbd:#f5b0b5;
+  --amber:#a86e00;--abg:#fdf3dc;--abd:#f0d080;
+  --blue:#1a4fc4;--bbg:#ecf1fd;--bbd:#b4c8f5;
+  --purple:#6b3fc0;
+}
+html{width:100%;min-height:100%;background:var(--bg);scrollbar-gutter:stable;}
+body{width:100%;min-height:100%;overflow-y:auto;overflow-x:hidden;background:var(--bg);
+  font-family:'Noto Sans TC',sans-serif;color:var(--text);}
+
+/* ─── TOPBAR ─── */
+#topbar{
+  position:fixed;inset:0 0 auto;height:54px;z-index:500;
+  background:linear-gradient(135deg,#1a3a8f 0%,#1a4fc4 50%,#2563eb 100%);
+  display:flex;align-items:center;padding:0 20px;gap:12px;
+  box-shadow:0 2px 12px rgba(26,63,156,.35);
+}
+.tb-logo{font-size:20px;margin-right:2px;}
+.tb-title{font-size:14px;font-weight:700;color:#fff;letter-spacing:.01em;}
+.tb-sub{font-size:10px;color:rgba(255,255,255,.5);font-family:'DM Mono',monospace;margin-left:4px;}
+.spacer{flex:1;}
+.tb-hint{font-size:11px;color:rgba(255,255,255,.45);letter-spacing:.01em;}
+.tb-date{font-size:11px;font-family:'DM Mono',monospace;color:rgba(255,255,255,.55);}
+/* zoom controls */
+.tb-btn{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.22);
+  color:#fff;padding:6px 13px;border-radius:7px;cursor:pointer;font-size:12px;
+  font-family:'Noto Sans TC',sans-serif;transition:.12s;}
+.tb-btn:hover{background:rgba(255,255,255,.28);}
+/* ── RIGHT RAIL REMOVED ──
+   改用瀏覽器原生右側捲軸，上下滾動整個儀表板。 */
+#zoom-rail{display:none!important;}
+
+/* ─── VIEWPORT ─── */
+#vp{
+  position:relative;
+  margin-top:54px;
+  width:100%;
+  min-height:calc(100vh - 54px);
+  overflow:visible;
+  padding-bottom:36px;
+}
+
+/* ─── BOARD ─── */
+#board{
+  position:relative;
+  width:min(1720px,100%);
+  max-width:1720px;
+  min-height:auto;
+  transform-origin:top center;
+  margin:0 auto;
+  padding:22px;
+  display:flex;flex-direction:column;gap:16px;
+  cursor:default;
+  will-change:transform;
+}
+
+/* ─── SECTION HEADER ─── */
+.sec-hd{display:flex;align-items:center;gap:8px;margin-bottom:3px;}
+.sec-emoji{font-size:18px;line-height:1;}
+.sec-title{font-size:13px;font-weight:700;color:var(--text);}
+.sec-sub{font-size:11px;color:var(--faint);margin-bottom:14px;}
+
+/* ─── KPI ─── */
+.kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:14px;
+  padding:17px 20px;border-left:3px solid currentColor;position:relative;overflow:hidden;}
+.kpi::before{content:attr(data-emoji);position:absolute;right:14px;top:10px;font-size:28px;opacity:.12;}
+.kpi-lbl{font-size:11px;color:var(--muted);margin-bottom:7px;font-weight:500;}
+.kpi-num{font-size:38px;font-weight:900;font-family:'DM Mono',monospace;line-height:1;}
+.kpi-sub{font-size:11px;color:var(--faint);margin-top:5px;}
+
+/* ─── GRID ─── */
+.grid{display:grid;grid-template-columns:1fr 420px;gap:14px;}
+.lc{display:flex;flex-direction:column;gap:14px;}
+.rc{display:flex;flex-direction:column;gap:14px;}
+
+/* ─── CARD ─── */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px 22px;}
+.card.g{border-left:3px solid var(--green);}
+.card.r{border-left:3px solid var(--red);}
+.card.a{border-left:3px solid var(--amber);}
+
+/* ─── BADGE ─── */
+.badge{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:600;
+  padding:2px 7px;border-radius:4px;letter-spacing:.02em;}
+.b-r{background:var(--rbg);color:var(--red);border:1px solid var(--rbd);}
+.b-a{background:var(--abg);color:var(--amber);border:1px solid var(--abd);}
+.b-g{background:var(--gbg);color:var(--green);border:1px solid var(--gbd);}
+.b-b{background:var(--bbg);color:var(--blue);border:1px solid var(--bbd);}
+
+/* ─── VOL CHART ─── */
+.vol-hdr{display:grid;grid-template-columns:68px 1fr 215px 66px;gap:10px;
+  padding:0 8px 8px;border-bottom:1px solid var(--border);margin-bottom:5px;}
+.vh{font-size:10px;color:var(--faint);font-weight:600;letter-spacing:.04em;}
+.vol-row{display:grid;grid-template-columns:68px 1fr 215px 66px;gap:10px;
+  align-items:center;padding:6px 8px;border-radius:8px;cursor:pointer;
+  border:1px solid transparent;transition:.13s;}
+.vol-row:hover{background:var(--s2);border-color:var(--border);}
+.vol-row.sel{background:var(--bbg);border-color:var(--bbd);}
+.vn{font-size:13px;font-weight:700;text-align:right;color:var(--text);}
+.vtrack{height:24px;background:var(--s2);border-radius:5px;overflow:hidden;border:1px solid var(--border);}
+.vfill{height:100%;border-radius:4px;display:flex;align-items:center;justify-content:flex-end;
+  padding-right:8px;font-size:10px;font-family:'DM Mono',monospace;font-weight:700;
+  color:#fff;width:0%;transition:width .9s cubic-bezier(.16,1,.3,1);}
+.vinfo{display:flex;flex-direction:column;gap:2px;}
+.vsup{font-size:11px;color:var(--muted);}
+.vprice{font-size:12px;font-family:'DM Mono',monospace;font-weight:600;}
+.vbadge{text-align:right;}
+.legend-row{display:flex;gap:14px;margin-bottom:12px;flex-wrap:wrap;}
+.legend-item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);}
+.legend-dot{width:12px;height:8px;border-radius:2px;display:inline-block;}
+
+/* ─── TABLES ─── */
+.tbl{width:100%;border-collapse:collapse;font-size:12px;}
+.tbl th{font-size:10px;color:var(--faint);font-weight:600;padding:0 0 9px;
+  border-bottom:1px solid var(--border);text-align:left;letter-spacing:.04em;white-space:nowrap;}
+.tbl td{padding:8px 0;border-bottom:1px solid var(--s2);vertical-align:middle;}
+.tbl tr:last-child td{border-bottom:none;}
+.tbl tr{cursor:pointer;transition:.12s;}
+.tbl tr:hover td{background:var(--s2);}
+.rank{width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;
+  justify-content:center;font-size:10px;font-weight:700;font-family:'DM Mono',monospace;}
+.r1{background:#fff0f0;color:#991b1b;}
+.r2{background:#fff4ed;color:#9a3412;}
+.r3{background:#fffaeb;color:#926000;}
+.rn{background:var(--s2);color:var(--faint);}
+.mono{font-family:'DM Mono',monospace;}
+.green{color:var(--green);}
+.red{color:var(--red);}
+.muted{color:var(--muted);}
+
+/* ─── STACKED BAR ─── */
+.sb-chart{display:flex;flex-direction:column;gap:10px;}
+.sb-row{display:flex;align-items:center;gap:8px;}
+.sb-lbl{width:68px;font-size:12px;color:var(--muted);text-align:right;flex-shrink:0;}
+.sb-track{flex:1;display:flex;height:28px;border-radius:7px;overflow:hidden;
+  background:var(--s2);border:1px solid var(--border);}
+.sb-seg{height:100%;width:0%;transition:width .9s cubic-bezier(.16,1,.3,1);
+  cursor:pointer;flex-shrink:0;position:relative;}
+.sb-total{width:30px;font-size:11px;font-family:'DM Mono',monospace;color:var(--muted);text-align:right;flex-shrink:0;}
+.sb-legend{display:flex;flex-wrap:wrap;gap:7px;margin-top:11px;padding-top:10px;border-top:1px solid var(--border);}
+.sb-li{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--muted);}
+.sb-ld{width:9px;height:9px;border-radius:2px;flex-shrink:0;}
+
+/* ─── TOOLTIP ─── */
+#tip{
+  position:fixed;z-index:9999;pointer-events:none;
+  background:#1b2540;color:#fff;
+  font-size:12px;font-family:'Noto Sans TC',sans-serif;font-weight:500;
+  padding:7px 12px;border-radius:8px;
+  box-shadow:0 4px 18px rgba(0,0,0,.22);
+  border:1px solid rgba(255,255,255,.08);
+  opacity:0;transition:opacity .12s;white-space:nowrap;
+}
+
+/* ─── TREND ─── */
+.dist-box{background:var(--s2);border:1px solid var(--border);border-radius:9px;padding:12px;margin-bottom:10px;}
+.spark-box{background:var(--s2);border:1px solid var(--border);border-radius:9px;padding:12px;margin-bottom:10px;}
+.tstats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
+.ts{text-align:center;padding:9px;background:var(--s2);border:1px solid var(--border);border-radius:8px;}
+.tsl{font-size:9px;color:var(--faint);margin-bottom:3px;font-weight:500;letter-spacing:.04em;}
+.tsv{font-size:16px;font-weight:700;font-family:'DM Mono',monospace;}
+.tss{font-size:9px;color:var(--faint);margin-top:2px;}
+
+/* ─── MISSING ─── */
+.miss-row{display:flex;gap:8px;align-items:center;padding:5px 0;
+  border-bottom:1px solid var(--s2);font-size:11px;}
+.miss-row:last-child{border-bottom:none;}
+
+/* ─── DETAIL PANEL ─── */
+#dp{
+  position:fixed;right:-405px;top:54px;bottom:0;width:390px;z-index:400;
+  background:var(--surface);border-left:1px solid var(--border);
+  transition:right .32s cubic-bezier(.16,1,.3,1);overflow-y:auto;
+}
+#dp.open{right:0;}
+.dp-hd{padding:18px 20px 14px;border-bottom:1px solid var(--border);
+  position:sticky;top:0;background:var(--surface);z-index:1;}
+.dp-close{float:right;background:var(--s2);border:1px solid var(--border);
+  color:var(--muted);width:27px;height:27px;border-radius:6px;cursor:pointer;
+  font-size:13px;display:inline-flex;align-items:center;justify-content:center;transition:.12s;}
+.dp-close:hover{background:var(--rbg);color:var(--red);}
+.dp-name{font-size:20px;font-weight:800;margin-bottom:5px;}
+.dp-body{padding:16px 20px;}
+.dp-kg{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:12px;}
+.dp-k{background:var(--s2);border:1px solid var(--border);border-radius:9px;padding:11px 13px;}
+.dp-kl{font-size:10px;color:var(--muted);margin-bottom:3px;font-weight:500;}
+.dp-kv{font-size:18px;font-weight:700;font-family:'DM Mono',monospace;}
+.dp-sec{font-size:10px;color:var(--faint);letter-spacing:.08em;text-transform:uppercase;margin:12px 0 7px;font-weight:600;}
+.dp-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;
+  border-bottom:1px solid var(--s2);font-size:12px;}
+.dp-row:last-child{border-bottom:none;}
+.dp-l{color:var(--muted);}
+.dp-v{font-family:'DM Mono',monospace;}
+.dp-stag{font-size:11px;padding:2px 7px;border-radius:4px;background:var(--bbg);color:var(--blue);border:1px solid var(--bbd);}
+.dp-hist{max-height:220px;overflow-y:auto;}
+
+/* 使用瀏覽器原生捲軸，不覆寫 scrollbar 樣式。 */
+@keyframes up{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+.card,.kpi{animation:up .4s ease both;}
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <span class="tb-logo">🥗</span>
+  <div class="tb-title">食材成本波動儀表板<span class="tb-sub"> · 2026年度 · 20品項 · 8供應商</span></div>
+  <div class="spacer"></div>
+  <span class="tb-hint">🖱 滾輪上下捲動 · Ctrl/⌘ + 滾輪縮放 · 點列查詳情</span>
+  <span class="tb-date">📅 2026/06/04</span>
+  <button class="tb-btn" onclick="resetView()">🔄 重置</button>
+  <button class="tb-btn" onclick="dlFile()">⬇ 下載</button>
+</div>
+
+<!-- CANVAS：右側改用瀏覽器原生捲軸，不再使用縮放滑桿 -->
+
+<div id="vp" style="min-height: 2201px;">
+  <div id="board" style="transform: scale(1);">
+
+    <!-- KPI -->
+    <div class="kpi-row" id="kpi-row">
+    <div class="kpi" data-emoji="🥦" style="border-left-color:var(--blue)">
+      <div class="kpi-lbl">🥦 品項總數</div>
+      <div class="kpi-num" style="color:var(--blue)">20</div>
+      <div class="kpi-sub">8 供應商 · 116 筆有效記錄</div>
+    </div>
+    <div class="kpi" data-emoji="🌡️" style="border-left-color:var(--red)">
+      <div class="kpi-lbl">🌡️ 高波動品項</div>
+      <div class="kpi-num" style="color:var(--red)">19</div>
+      <div class="kpi-sub">波動幅度 ≥ 80%，需重點監控</div>
+    </div>
+    <div class="kpi" data-emoji="🔴" style="border-left-color:var(--red)">
+      <div class="kpi-lbl">🔴 優先替換</div>
+      <div class="kpi-num" style="color:var(--red)">8</div>
+      <div class="kpi-sub">最新價高於均價，建議換供應商</div>
+    </div>
+    <div class="kpi" data-emoji="🛒" style="border-left-color:var(--green)">
+      <div class="kpi-lbl">🛒 建議加購</div>
+      <div class="kpi-num" style="color:var(--green)">10</div>
+      <div class="kpi-sub">最新價低於均價 10%+，低點進貨</div>
+    </div></div>
+
+    <!-- MAIN -->
+    <div class="grid">
+      <div class="lc">
+
+        <!-- VOL -->
+        <div class="card">
+          <div class="sec-hd"><span class="sec-emoji">📊</span><div class="sec-title">各品項採購價格波動幅度</div></div>
+          <div class="sec-sub">橫條 = (最高−最低)÷平均 · 右側標最新供應商與成交價 · 點列查走勢</div>
+          <div class="legend-row">
+            <span class="legend-item"><span class="legend-dot" style="background:var(--red)"></span>極高波動 ≥150%</span>
+            <span class="legend-item"><span class="legend-dot" style="background:var(--amber)"></span>高波動 80–150%</span>
+            <span class="legend-item"><span class="legend-dot" style="background:var(--green)"></span>穩定 &lt;80%</span>
+          </div>
+          <div class="vol-hdr">
+            <div class="vh" style="text-align:right">品項</div>
+            <div class="vh">波動幅度</div>
+            <div class="vh">最新供應商 / 成交價</div>
+            <div class="vh" style="text-align:right">狀態</div>
+          </div>
+          <div id="vol-chart"><div class="vol-row" onclick="selIt('起司')">
+      <div class="vn">起司</div>
+      <div class="vtrack"><div class="vfill" style="background: var(--red); width: 100%;" data-w="100%">196%</div></div>
+      <div class="vinfo">
+        <div class="vsup">益昌 · 04/04</div>
+        <div class="vprice" style="color:var(--green)">NT$102 <span style="font-size:10px">(-20% vs 均)</span></div>
+      </div>
+      <div class="vbadge"><span class="badge b-r">🔴 極高</span></div>
+    </div><div class="vol-row" onclick="selIt('菇類')">
+      <div class="vn">菇類</div>
+      <div class="vtrack"><div class="vfill" style="background: var(--red); width: 94%;" data-w="94%">184%</div></div>
+      <div class="vinfo">
+        <div class="vsup">大全農產 · 12/20</div>
+        <div class="vprice" style="color:var(--green)">NT$19 <span style="font-size:10px">(-90% vs 均)</span></div>
+      </div>
+      <div class="vbadge"><span class="badge b-r">🔴 極高</span></div>
+    </div><div class="vol-row" onclick="selIt('豬絞肉')">
+      <div class="vn">豬絞肉</div>
+      <div class="vtrack"><div class="vfill" style="background: var(--red); width: 94%;" data-w="94%">184%</div></div>
+      <div class="vinfo">
+        <div class="vsup">益昌 · 12/16</div>
+        <div class="vprice" style="color:var(--green)">NT$151 <span style="font-size:10px">(-39% vs 均)</span></div>
+      </div>
+      <div class="vbadge"><span class="badge b-r">🔴 極高</span></div>
+    </div><div class="vol-row" onclick="selIt('馬鈴薯')">
+      <div class="vn">馬鈴薯</div>
+      <div class="vtrack"><div class="vfill" style="background: var(--red); width: 91%;" data-w="91%">179%</div></div>
+      <div class="vinfo">
+        <div class="vsup">鮮供應 · 11/19</div>
+        <div class="vprice" style="color:var(--green)">NT$179 <span style="font-size:10px">(-17% vs 均)</span></div>
+      </div>
+      <div class="vbadge"><span class="badge b-r">🔴 極高</span></div>
+    </div><div class="vol-row" onclick="selIt('麵粉')">
+      <div class="vn">麵粉</div>
+      <div class="vtrack"><div class="vfill" style="background: var(--red); width: 81%;" data-w="81%">158%</div></div>
+      <div class="vinfo">
+        <div class="vsup">海洋直送 · 12/04</div>
+        <div class="vprice" style="color:var(--green)">NT$166 <span style="font-size:10px">(-43% vs 均)</span></div>
+      </div>
+      <div class="vbadge"><span class="badge b-r">🔴 極高</span></div>
+    </div><div class="vol-row" onclick="selIt('牛奶')">
+      <div class="vn">牛奶</div>
+      <div class="vtrack"><div class="vfill" style="background: var(--red); width: 80%;" data-w="80%">157%</div></div>
+      <div class="vinfo">
+        <div class="vsup">豐收行 · 11/11</div>
+        <div class="vprice" style="color:var(--red)">NT$468 <span style="font-size:10px">(+71% vs 均)</span></div>
+      </div>
+      <div class="vbadge"><span class="badge b-r">🔴 極高</span></div>
+    </div><div class="vol-row sel" onclick="selIt('雞蛋')">
+      <div class="vn">雞蛋</div>
+      <div class="vtrack"><div class="vfill" style="background: var(--red); width: 77%;" data-w="77%">150%</div></div>
+      <div class="vinfo">
+        <div class="vsup">海洋直送 · 12/12</div>
+        <div class="vprice" style="color:var(--muted)">NT$286 <span style="font-size:10px">(+8% vs 均)</span></div>
+      </div>
+      <div class="vbadge"><span class="badge b-r">🔴 極高</span></div>
+    </div><div class="vol-row" onclick="selIt('豆腐')">
+      <div class="vn">豆腐</div>
+      <div class="vtrack"><div class="vfill" style="background: var(--amber); width: 74%;" data-w="74%">146%</div></div>
+      <div class="vinfo">
+        <div class="vsup">益昌 · 10/18</div>
+        <div class="vprice" style="color:var(--green)">NT$47 <span style="font-size:10px">(-82% vs 均)</span></div>
+      </div>
+      <div class="vbadge"><span class="badge b-a">🟠 高</span></div>
+    </div><div class="vol-row" onclick="selIt('鮭魚')">
+      <div class="vn">鮭魚</div>
+      <div class="vtrack"><div class="vfill" style="background: var(--amber); width: 72%;" data-w="72%">141%</div></div>
+      <div class="vinfo">
+        <div class="vsup">豐收行 · 08/28</div>
+        <div class="vprice" style="color:var(--red)">NT$466 <span style="font-size:10px">(+69% vs 均)</span></div>
+      </div>
+      <div class="vbadge"><span class="badge b-a">🟠 高</span></div>
+    </div><div class="vol-row" onclick="selIt('食用油')">
+      <div class="vn">食用油</div>
+      <div class="vtrack"><div class="vfill" style="background: var(--amber); width: 69%;" data-w="69%">136%</div></div>
+      <div class="vinfo">
+        <div class="vsup">海洋直送 · 11/27</div>
+        <div class="vprice" style="color:var(--muted)">NT$292 <span style="font-size:10px">(+3% vs 均)</span></div>
+      </div>
+      <div class="vbadge"><span class="badge b-a">🟠 高</span></div>
+    </div><div class="vol-row" onclick="selIt('奶油')">
+      <div class="vn">奶油</div>
+      <div class="vtrack"><div class="vfill" style="background: var(--amber); width: 68%;" data-w="68%">134%</div></div>
+      <div class="vinfo">
+        <div class="vsup">鮮供應 · 11/07</div>
+        <div class="vprice" style="color:var(--muted)">NT$295 <span style="font-size:10px">(+4% vs 均)</span></div>
+      </div>
+      <div class="vbadge"><span class="badge b-a">🟠 高</span></div>
+    </div><div class="vol-row" onclick="selIt('蝦仁')">
+      <div class="vn">蝦仁</div>
+      <div class="vtrack"><div class="vfill" style="background: var(--amber); width: 66%;" data-w="66%">130%</div></div>
+      <div class="vinfo">
+        <div class="vsup">大全農產 · 11/23</div>
+        <div class="vprice" style="color:var(--green)">NT$134 <span style="font-size:10px">(-54% vs 均)</span></div>
+      </div>
+      <div class="vbadge"><span class="badge b-a">🟠 高</span></div>
+    </div><div class="vol-row" onclick="selIt('番茄')">
+      <div class="vn">番茄</div>
+      <div class="vtrack"><div class="vfill" style="background: var(--amber); width: 63%;" data-w="63%">124%</div></div>
+      <div class="vinfo">
+        <div class="vsup">綠源 · 07/27</div>
+        <div class="vprice" style="color:var(--muted)">NT$239 <span style="font-size:10px">(-6% vs 均)</span></div>
+      </div>
+      <div class="vbadge"><span class="badge b-a">🟠 高</span></div>
+    </div><div class="vol-row" onclick="selIt('白米')">
+      <div class="vn">白米</div>
+      <div class="vtrack"><div class="vfill" style="background: var(--amber); width: 60%;" data-w="60%">118%</div></div>
+      <div class="vinfo">
+        <div class="vsup">海洋直送 · 10/06</div>
+        <div class="vprice" style="color:var(--muted)">NT$317 <span style="font-size:10px">(-4% vs 均)</span></div>
+      </div>
+      <div class="vbadge"><span class="badge b-a">🟠 高</span></div>
+    </div><div class="vol-row" onclick="selIt('洋蔥')">
+      <div class="vn">洋蔥</div>
+      <div class="vtrack"><div class="vfill" style="background: var(--amber); width: 59%;" data-w="59%">116%</div></div>
+      <div class="vinfo">
+        <div class="vsup">豐收行 · 12/24</div>
+        <div class="vprice" style="color:var(--green)">NT$203 <span style="font-size:10px">(-22% vs 均)</span></div>
+      </div>
+      <div class="vbadge"><span class="badge b-a">🟠 高</span></div>
+    </div><div class="vol-row" onclick="selIt('紅蘿蔔')">
+      <div class="vn">紅蘿蔔</div>
+      <div class="vtrack"><div class="vfill" style="background: var(--amber); width: 49%;" data-w="49%">97%</div></div>
+      <div class="vinfo">
+        <div class="vsup">長榮食材 · 09/05</div>
+        <div class="vprice" style="color:var(--red)">NT$335 <span style="font-size:10px">(+65% vs 均)</span></div>
+      </div>
+      <div class="vbadge"><span class="badge b-a">🟠 高</span></div>
+    </div><div class="vol-row" onclick="selIt('醬油')">
+      <div class="vn">醬油</div>
+      <div class="vtrack"><div class="vfill" style="background: var(--amber); width: 48%;" data-w="48%">94%</div></div>
+      <div class="vinfo">
+        <div class="vsup">長榮食材 · 09/13</div>
+        <div class="vprice" style="color:var(--green)">NT$145 <span style="font-size:10px">(-57% vs 均)</span></div>
+      </div>
+      <div class="vbadge"><span class="badge b-a">🟠 高</span></div>
+    </div><div class="vol-row" onclick="selIt('雞胸肉')">
+      <div class="vn">雞胸肉</div>
+      <div class="vtrack"><div class="vfill" style="background: var(--amber); width: 45%;" data-w="45%">89%</div></div>
+      <div class="vinfo">
+        <div class="vsup">豐收行 · 09/25</div>
+        <div class="vprice" style="color:var(--muted)">NT$379 <span style="font-size:10px">(+3% vs 均)</span></div>
+      </div>
+      <div class="vbadge"><span class="badge b-a">🟠 高</span></div>
+    </div><div class="vol-row" onclick="selIt('砂糖')">
+      <div class="vn">砂糖</div>
+      <div class="vtrack"><div class="vfill" style="background: var(--amber); width: 44%;" data-w="44%">87%</div></div>
+      <div class="vinfo">
+        <div class="vsup">台農 · 08/12</div>
+        <div class="vprice" style="color:var(--green)">NT$274 <span style="font-size:10px">(-16% vs 均)</span></div>
+      </div>
+      <div class="vbadge"><span class="badge b-a">🟠 高</span></div>
+    </div><div class="vol-row" onclick="selIt('高麗菜')">
+      <div class="vn">高麗菜</div>
+      <div class="vtrack"><div class="vfill" style="background: var(--green); width: 24%;" data-w="24%">48%</div></div>
+      <div class="vinfo">
+        <div class="vsup">鮮供應 · 12/08</div>
+        <div class="vprice" style="color:var(--red)">NT$435 <span style="font-size:10px">(+25% vs 均)</span></div>
+      </div>
+      <div class="vbadge"><span class="badge b-g">🟢 穩定</span></div>
+    </div></div>
+        </div>
+
+        <!-- PRIORITY -->
+        <div class="card r">
+          <div class="sec-hd"><span class="sec-emoji">🔴</span><div class="sec-title" style="color:var(--red)">優先替換清單</div><span class="badge b-r" style="margin-left:6px">依漲幅排序</span></div>
+          <div class="sec-sub">最新採購價高於年度均價 · 前三名為緊急 · 點列查詳情與節省試算</div>
+          <table class="tbl" id="pri-tbl">
+    <thead><tr>
+      <th style="width:26px">#</th><th>品項</th><th>最新供應商</th>
+      <th>最新價</th><th>漲幅</th><th>建議換至</th><th>歷史最低</th><th>可省/單</th>
+    </tr></thead>
+    <tbody><tr onclick="selIt('牛奶')">
+        <td><span class="rank r1">1</span></td>
+        <td style="font-weight:700">牛奶</td>
+        <td class="muted" style="font-size:11px">豐收行</td>
+        <td class="mono red">NT$468</td>
+        <td><span class="badge b-r">+71%</span></td>
+        <td style="font-size:11px;color:var(--green);font-weight:600">海洋直送</td>
+        <td class="mono green">NT$53</td>
+        <td class="mono" style="color:var(--green)">-415</td>
+      </tr><tr onclick="selIt('鮭魚')">
+        <td><span class="rank r2">2</span></td>
+        <td style="font-weight:700">鮭魚</td>
+        <td class="muted" style="font-size:11px">豐收行</td>
+        <td class="mono red">NT$466</td>
+        <td><span class="badge b-r">+69%</span></td>
+        <td style="font-size:11px;color:var(--green);font-weight:600">海洋直送</td>
+        <td class="mono green">NT$78</td>
+        <td class="mono" style="color:var(--green)">-388</td>
+      </tr><tr onclick="selIt('紅蘿蔔')">
+        <td><span class="rank r3">3</span></td>
+        <td style="font-weight:700">紅蘿蔔</td>
+        <td class="muted" style="font-size:11px">長榮食材</td>
+        <td class="mono red">NT$335</td>
+        <td><span class="badge b-r">+65%</span></td>
+        <td style="font-size:11px;color:var(--green);font-weight:600">鮮供應</td>
+        <td class="mono green">NT$138</td>
+        <td class="mono" style="color:var(--green)">-197</td>
+      </tr><tr onclick="selIt('高麗菜')">
+        <td><span class="rank rn">4</span></td>
+        <td style="font-weight:700">高麗菜</td>
+        <td class="muted" style="font-size:11px">鮮供應</td>
+        <td class="mono red">NT$435</td>
+        <td><span class="badge b-r">+25%</span></td>
+        <td style="font-size:11px;color:var(--green);font-weight:600">大全農產</td>
+        <td class="mono green">NT$269</td>
+        <td class="mono" style="color:var(--green)">-166</td>
+      </tr><tr onclick="selIt('雞蛋')">
+        <td><span class="rank rn">5</span></td>
+        <td style="font-weight:700">雞蛋</td>
+        <td class="muted" style="font-size:11px">海洋直送</td>
+        <td class="mono red">NT$286</td>
+        <td><span class="badge b-r">+8%</span></td>
+        <td style="font-size:11px;color:var(--green);font-weight:600">大全農產</td>
+        <td class="mono green">NT$68</td>
+        <td class="mono" style="color:var(--green)">-219</td>
+      </tr><tr onclick="selIt('奶油')">
+        <td><span class="rank rn">6</span></td>
+        <td style="font-weight:700">奶油</td>
+        <td class="muted" style="font-size:11px">鮮供應</td>
+        <td class="mono red">NT$295</td>
+        <td><span class="badge b-r">+4%</span></td>
+        <td style="font-size:11px;color:var(--green);font-weight:600">長榮食材</td>
+        <td class="mono green">NT$49</td>
+        <td class="mono" style="color:var(--green)">-246</td>
+      </tr><tr onclick="selIt('食用油')">
+        <td><span class="rank rn">7</span></td>
+        <td style="font-weight:700">食用油</td>
+        <td class="muted" style="font-size:11px">海洋直送</td>
+        <td class="mono red">NT$292</td>
+        <td><span class="badge b-r">+3%</span></td>
+        <td style="font-size:11px;color:var(--green);font-weight:600">大全農產</td>
+        <td class="mono green">NT$112</td>
+        <td class="mono" style="color:var(--green)">-180</td>
+      </tr><tr onclick="selIt('雞胸肉')">
+        <td><span class="rank rn">8</span></td>
+        <td style="font-weight:700">雞胸肉</td>
+        <td class="muted" style="font-size:11px">豐收行</td>
+        <td class="mono red">NT$379</td>
+        <td><span class="badge b-r">+3%</span></td>
+        <td style="font-size:11px;color:var(--green);font-weight:600">長榮食材</td>
+        <td class="mono green">NT$126</td>
+        <td class="mono" style="color:var(--green)">-254</td>
+      </tr></tbody></table>
+        </div>
+
+        <!-- BUY MORE -->
+        <div class="card g">
+          <div class="sec-hd"><span class="sec-emoji">✅</span><div class="sec-title" style="color:var(--green)">建議加購清單</div><span class="badge b-g" style="margin-left:6px">現在低點</span></div>
+          <div class="sec-sub">最新採購價低於年度均價 10%+ · 建議適度囤貨鎖低成本</div>
+          <table class="tbl" id="buy-tbl">
+    <thead><tr>
+      <th>品項</th><th>最新供應商</th><th>最新成交</th><th>年度均價</th><th>低於均</th><th>每單節省</th>
+    </tr></thead>
+    <tbody><tr onclick="selIt('菇類')">
+        <td style="font-weight:700">菇類</td>
+        <td class="muted" style="font-size:11px">大全農產</td>
+        <td class="mono green">NT$19</td>
+        <td class="mono muted">NT$191</td>
+        <td><span class="badge b-g">-90%</span></td>
+        <td class="mono green">+NT$172</td>
+      </tr><tr onclick="selIt('豆腐')">
+        <td style="font-weight:700">豆腐</td>
+        <td class="muted" style="font-size:11px">益昌</td>
+        <td class="mono green">NT$47</td>
+        <td class="mono muted">NT$260</td>
+        <td><span class="badge b-g">-82%</span></td>
+        <td class="mono green">+NT$212</td>
+      </tr><tr onclick="selIt('醬油')">
+        <td style="font-weight:700">醬油</td>
+        <td class="muted" style="font-size:11px">長榮食材</td>
+        <td class="mono green">NT$145</td>
+        <td class="mono muted">NT$339</td>
+        <td><span class="badge b-g">-57%</span></td>
+        <td class="mono green">+NT$195</td>
+      </tr><tr onclick="selIt('蝦仁')">
+        <td style="font-weight:700">蝦仁</td>
+        <td class="muted" style="font-size:11px">大全農產</td>
+        <td class="mono green">NT$134</td>
+        <td class="mono muted">NT$295</td>
+        <td><span class="badge b-g">-54%</span></td>
+        <td class="mono green">+NT$160</td>
+      </tr><tr onclick="selIt('麵粉')">
+        <td style="font-weight:700">麵粉</td>
+        <td class="muted" style="font-size:11px">海洋直送</td>
+        <td class="mono green">NT$166</td>
+        <td class="mono muted">NT$289</td>
+        <td><span class="badge b-g">-43%</span></td>
+        <td class="mono green">+NT$123</td>
+      </tr><tr onclick="selIt('豬絞肉')">
+        <td style="font-weight:700">豬絞肉</td>
+        <td class="muted" style="font-size:11px">益昌</td>
+        <td class="mono green">NT$151</td>
+        <td class="mono muted">NT$246</td>
+        <td><span class="badge b-g">-39%</span></td>
+        <td class="mono green">+NT$95</td>
+      </tr><tr onclick="selIt('洋蔥')">
+        <td style="font-weight:700">洋蔥</td>
+        <td class="muted" style="font-size:11px">豐收行</td>
+        <td class="mono green">NT$203</td>
+        <td class="mono muted">NT$262</td>
+        <td><span class="badge b-g">-22%</span></td>
+        <td class="mono green">+NT$59</td>
+      </tr><tr onclick="selIt('起司')">
+        <td style="font-weight:700">起司</td>
+        <td class="muted" style="font-size:11px">益昌</td>
+        <td class="mono green">NT$102</td>
+        <td class="mono muted">NT$128</td>
+        <td><span class="badge b-g">-20%</span></td>
+        <td class="mono green">+NT$25</td>
+      </tr><tr onclick="selIt('馬鈴薯')">
+        <td style="font-weight:700">馬鈴薯</td>
+        <td class="muted" style="font-size:11px">鮮供應</td>
+        <td class="mono green">NT$179</td>
+        <td class="mono muted">NT$216</td>
+        <td><span class="badge b-g">-17%</span></td>
+        <td class="mono green">+NT$36</td>
+      </tr><tr onclick="selIt('砂糖')">
+        <td style="font-weight:700">砂糖</td>
+        <td class="muted" style="font-size:11px">台農</td>
+        <td class="mono green">NT$274</td>
+        <td class="mono muted">NT$324</td>
+        <td><span class="badge b-g">-16%</span></td>
+        <td class="mono green">+NT$50</td>
+      </tr></tbody></table>
+        </div>
+
+      </div><!-- /lc -->
+      <div class="rc">
+
+        <!-- TREND -->
+        <div class="card">
+          <div class="sec-hd"><span class="sec-emoji">📈</span><div class="sec-title" id="trend-title">雞蛋 — 採購走勢</div></div>
+          <div class="sec-sub" id="trend-sub">12 筆記錄 · 滑過圓點查詳情</div>
+          <div class="dist-box">
+            <div style="font-size:10px;color:var(--faint);margin-bottom:7px;font-weight:500;letter-spacing:.03em;">🔔 價格分布示意 · 圓點 = 最新採購位置</div>
+            <svg id="dist-svg" width="340" height="88" viewBox="0 0 340 88">
+    <defs><linearGradient id="dg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1a4fc4" stop-opacity=".14"></stop>
+      <stop offset="100%" stop-color="#1a4fc4" stop-opacity="0"></stop>
+    </linearGradient></defs>
+    <polygon points="18.0,70 18.0,66.9 21.0,66.6 24.1,66.2 27.1,65.7 30.2,65.3 33.2,64.7 36.2,64.2 39.3,63.6 42.3,62.9 45.4,62.2 48.4,61.5 51.4,60.7 54.5,59.8 57.5,58.9 60.6,57.9 63.6,56.9 66.6,55.8 69.7,54.7 72.7,53.6 75.8,52.3 78.8,51.1 81.8,49.7 84.9,48.4 87.9,47.0 91.0,45.6 94.0,44.1 97.0,42.6 100.1,41.1 103.1,39.6 106.2,38.1 109.2,36.6 112.2,35.1 115.3,33.6 118.3,32.2 121.4,30.7 124.4,29.3 127.4,28.0 130.5,26.7 133.5,25.5 136.6,24.3 139.6,23.2 142.6,22.3 145.7,21.4 148.7,20.6 151.8,19.9 154.8,19.3 157.8,18.8 160.9,18.4 163.9,18.2 167.0,18.0 170.0,18.0 173.0,18.1 176.1,18.3 179.1,18.7 182.2,19.1 185.2,19.7 188.2,20.4 191.3,21.2 194.3,22.1 197.4,23.0 200.4,24.1 203.4,25.2 206.5,26.4 209.5,27.7 212.6,29.0 215.6,30.4 218.6,31.8 221.7,33.3 224.7,34.8 227.8,36.3 230.8,37.8 233.8,39.3 236.9,40.8 239.9,42.3 243.0,43.8 246.0,45.3 249.0,46.7 252.1,48.1 255.1,49.5 258.2,50.8 261.2,52.1 264.2,53.3 267.3,54.5 270.3,55.6 273.4,56.7 276.4,57.7 279.4,58.7 282.5,59.6 285.5,60.5 288.6,61.3 291.6,62.1 294.6,62.8 297.7,63.4 300.7,64.1 303.8,64.6 306.8,65.2 309.8,65.6 312.9,66.1 315.9,66.5 319.0,66.9 322.0,67.2 322.0,70" fill="url(#dg)"></polygon>
+    <polyline points="18.0,66.9 21.0,66.6 24.1,66.2 27.1,65.7 30.2,65.3 33.2,64.7 36.2,64.2 39.3,63.6 42.3,62.9 45.4,62.2 48.4,61.5 51.4,60.7 54.5,59.8 57.5,58.9 60.6,57.9 63.6,56.9 66.6,55.8 69.7,54.7 72.7,53.6 75.8,52.3 78.8,51.1 81.8,49.7 84.9,48.4 87.9,47.0 91.0,45.6 94.0,44.1 97.0,42.6 100.1,41.1 103.1,39.6 106.2,38.1 109.2,36.6 112.2,35.1 115.3,33.6 118.3,32.2 121.4,30.7 124.4,29.3 127.4,28.0 130.5,26.7 133.5,25.5 136.6,24.3 139.6,23.2 142.6,22.3 145.7,21.4 148.7,20.6 151.8,19.9 154.8,19.3 157.8,18.8 160.9,18.4 163.9,18.2 167.0,18.0 170.0,18.0 173.0,18.1 176.1,18.3 179.1,18.7 182.2,19.1 185.2,19.7 188.2,20.4 191.3,21.2 194.3,22.1 197.4,23.0 200.4,24.1 203.4,25.2 206.5,26.4 209.5,27.7 212.6,29.0 215.6,30.4 218.6,31.8 221.7,33.3 224.7,34.8 227.8,36.3 230.8,37.8 233.8,39.3 236.9,40.8 239.9,42.3 243.0,43.8 246.0,45.3 249.0,46.7 252.1,48.1 255.1,49.5 258.2,50.8 261.2,52.1 264.2,53.3 267.3,54.5 270.3,55.6 273.4,56.7 276.4,57.7 279.4,58.7 282.5,59.6 285.5,60.5 288.6,61.3 291.6,62.1 294.6,62.8 297.7,63.4 300.7,64.1 303.8,64.6 306.8,65.2 309.8,65.6 312.9,66.1 315.9,66.5 319.0,66.9 322.0,67.2" fill="none" stroke="#1a4fc4" stroke-width="2" stroke-linejoin="round"></polyline>
+    <line x1="168.8" y1="18" x2="168.8" y2="70" stroke="#a86e00" stroke-width="1.5" stroke-dasharray="4,3"></line>
+    <text x="168.8" y="80" text-anchor="middle" font-size="8" fill="#a86e00" font-family="'DM Mono',monospace">均價</text>
+    <circle cx="182.1" cy="19.1" r="5.5" fill="#1a4fc4" stroke="white" stroke-width="2"></circle>
+    <text x="182.1" y="10.100000000000001" text-anchor="middle" font-size="9" fill="#1a4fc4" font-family="'DM Mono',monospace" font-weight="700">最新</text></svg>
+            <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--faint);margin-top:3px;font-family:'DM Mono',monospace" id="dist-lbl"><span>NT$68</span><span style="color:#1a4fc4">←低　高→</span><span>NT$467</span></div>
+          </div>
+          <div class="spark-box">
+            <svg id="spark-svg" width="332" height="78" viewBox="0 0 332 78">
+    <defs><linearGradient id="sg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1a4fc4" stop-opacity=".12"></stop>
+      <stop offset="100%" stop-color="#1a4fc4" stop-opacity="0"></stop>
+    </linearGradient></defs>
+    <polygon points="6.0,78 6.0,67.8 35.1,18.0 64.2,46.5 93.3,16.5 122.4,55.5 151.5,72.0 180.5,6.0 209.6,8.3 238.7,41.2 267.8,64.9 296.9,39.1 326.0,35.9 326.0,78" fill="url(#sg)"></polygon>
+    <polyline points="6.0,67.8 35.1,18.0 64.2,46.5 93.3,16.5 122.4,55.5 151.5,72.0 180.5,6.0 209.6,8.3 238.7,41.2 267.8,64.9 296.9,39.1 326.0,35.9" fill="none" stroke="#1a4fc4" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"></polyline>
+    <line x1="6" y1="39.3" x2="326" y2="39.3" stroke="#a86e00" stroke-width="1" stroke-dasharray="4,3"></line>
+    <text x="328" y="39.3" font-size="8" fill="#a86e00" font-family="'DM Mono',monospace" dominant-baseline="middle">均</text>
+    <circle cx="6.0" cy="67.8" r="3.5" fill="#1a4fc4" stroke="white" stroke-width="1.5" style="cursor:pointer"><title>2026/02/06 · 大全農產 · NT$93.0</title></circle><circle cx="35.1" cy="18.0" r="3.5" fill="#1a4fc4" stroke="white" stroke-width="1.5" style="cursor:pointer"><title>2026/03/08 · 台農 · NT$394.2</title></circle><circle cx="64.2" cy="46.5" r="3.5" fill="#1a4fc4" stroke="white" stroke-width="1.5" style="cursor:pointer"><title>2026/05/02 · 海洋直送 · NT$221.9</title></circle><circle cx="93.3" cy="16.5" r="3.5" fill="#1a4fc4" stroke="white" stroke-width="1.5" style="cursor:pointer"><title>2026/05/18 · 豐收行 · NT$403.5</title></circle><circle cx="122.4" cy="55.5" r="3.5" fill="#1a4fc4" stroke="white" stroke-width="1.5" style="cursor:pointer"><title>2026/05/21 · 長榮食材 · NT$167.3</title></circle><circle cx="151.5" cy="72.0" r="3.5" fill="#1a4fc4" stroke="white" stroke-width="1.5" style="cursor:pointer"><title>2026/06/05 · 大全農產 · NT$67.6</title></circle><circle cx="180.5" cy="6.0" r="3.5" fill="#1a4fc4" stroke="white" stroke-width="1.5" style="cursor:pointer"><title>2026/06/10 · 益昌 · NT$467.0</title></circle><circle cx="209.6" cy="8.3" r="3.5" fill="#1a4fc4" stroke="white" stroke-width="1.5" style="cursor:pointer"><title>2026/07/07 · 長榮食材 · NT$452.9</title></circle><circle cx="238.7" cy="41.2" r="3.5" fill="#1a4fc4" stroke="white" stroke-width="1.5" style="cursor:pointer"><title>2026/08/20 · 豐收行 · NT$254.0</title></circle><circle cx="267.8" cy="64.9" r="3.5" fill="#1a4fc4" stroke="white" stroke-width="1.5" style="cursor:pointer"><title>2026/11/03 · 益昌 · NT$110.8</title></circle><circle cx="296.9" cy="39.1" r="3.5" fill="#1a4fc4" stroke="white" stroke-width="1.5" style="cursor:pointer"><title>2026/12/08 · 大全農產 · NT$266.6</title></circle><circle cx="326.0" cy="35.9" r="3.5" fill="#1a4fc4" stroke="white" stroke-width="1.5" style="cursor:pointer"><title>2026/12/12 · 海洋直送 · NT$286.3</title></circle>
+    <circle cx="326.0" cy="35.9" r="5.5" fill="#1a4fc4" stroke="white" stroke-width="2"></circle></svg>
+            <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--faint);margin-top:3px;font-family:'DM Mono',monospace" id="spark-dates"><span>02/06</span><span>12/12</span></div>
+          </div>
+          <div class="tstats" id="tstats">
+    <div class="ts"><div class="tsl">📉 年度最低</div><div class="tsv" style="color:var(--green)">NT$68</div><div class="tss">大全農產</div></div>
+    <div class="ts"><div class="tsl">📊 年度均價</div><div class="tsv" style="color:var(--amber)">NT$265</div></div>
+    <div class="ts"><div class="tsl">🕐 最新採購</div><div class="tsv" style="color:var(--text)">NT$286</div><div class="tss">+8% vs 均</div></div></div>
+        </div>
+
+        <!-- PIE CHART -->
+        <div class="card">
+          <div class="sec-hd"><span class="sec-emoji">🥧</span><div class="sec-title">品項廠商採購佔比</div></div>
+          <div class="sec-sub" style="margin-bottom:10px">選擇品項查看各廠商採購次數佔比</div>
+          <div style="margin-bottom:10px;">
+            <select id="pie-select" onchange="renderPie(this.value)" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:8px;
+              background:var(--s2);color:var(--text);font-size:13px;font-family:'Noto Sans TC',sans-serif;cursor:pointer;">
+            <option value="奶油">奶油</option><option value="洋蔥">洋蔥</option><option value="牛奶">牛奶</option><option value="番茄">番茄</option><option value="白米">白米</option><option value="砂糖">砂糖</option><option value="紅蘿蔔">紅蘿蔔</option><option value="菇類">菇類</option><option value="蝦仁">蝦仁</option><option value="豆腐">豆腐</option><option value="豬絞肉">豬絞肉</option><option value="起司">起司</option><option value="醬油">醬油</option><option value="雞胸肉">雞胸肉</option><option value="雞蛋">雞蛋</option><option value="食用油">食用油</option><option value="馬鈴薯">馬鈴薯</option><option value="高麗菜">高麗菜</option><option value="鮭魚">鮭魚</option><option value="麵粉">麵粉</option></select>
+          </div>
+          <div style="display:flex;align-items:center;gap:16px;">
+            <canvas id="pie-canvas" width="150" height="150" style="flex-shrink:0;"></canvas>
+            <div id="pie-legend" style="flex:1;display:flex;flex-direction:column;gap:5px;"><div style="display:flex;align-items:center;gap:7px;">
+      <span style="width:10px;height:10px;border-radius:2px;background:#3b82f6;flex-shrink:0;display:inline-block;"></span>
+      <span style="font-size:12px;flex:1;color:var(--text);font-weight:500;">大全農產</span>
+      <span style="font-size:11px;font-family:'DM Mono',monospace;color:var(--muted);">3次</span>
+      <span style="font-size:10px;font-family:'DM Mono',monospace;font-weight:600;color:#3b82f6;min-width:32px;text-align:right;">25%</span>
+    </div><div style="display:flex;align-items:center;gap:7px;">
+      <span style="width:10px;height:10px;border-radius:2px;background:#10b981;flex-shrink:0;display:inline-block;"></span>
+      <span style="font-size:12px;flex:1;color:var(--text);font-weight:500;">海洋直送</span>
+      <span style="font-size:11px;font-family:'DM Mono',monospace;color:var(--muted);">2次</span>
+      <span style="font-size:10px;font-family:'DM Mono',monospace;font-weight:600;color:#10b981;min-width:32px;text-align:right;">17%</span>
+    </div><div style="display:flex;align-items:center;gap:7px;">
+      <span style="width:10px;height:10px;border-radius:2px;background:#f59e0b;flex-shrink:0;display:inline-block;"></span>
+      <span style="font-size:12px;flex:1;color:var(--text);font-weight:500;">豐收行</span>
+      <span style="font-size:11px;font-family:'DM Mono',monospace;color:var(--muted);">2次</span>
+      <span style="font-size:10px;font-family:'DM Mono',monospace;font-weight:600;color:#f59e0b;min-width:32px;text-align:right;">17%</span>
+    </div><div style="display:flex;align-items:center;gap:7px;">
+      <span style="width:10px;height:10px;border-radius:2px;background:#ef4444;flex-shrink:0;display:inline-block;"></span>
+      <span style="font-size:12px;flex:1;color:var(--text);font-weight:500;">長榮食材</span>
+      <span style="font-size:11px;font-family:'DM Mono',monospace;color:var(--muted);">2次</span>
+      <span style="font-size:10px;font-family:'DM Mono',monospace;font-weight:600;color:#ef4444;min-width:32px;text-align:right;">17%</span>
+    </div><div style="display:flex;align-items:center;gap:7px;">
+      <span style="width:10px;height:10px;border-radius:2px;background:#8b5cf6;flex-shrink:0;display:inline-block;"></span>
+      <span style="font-size:12px;flex:1;color:var(--text);font-weight:500;">益昌</span>
+      <span style="font-size:11px;font-family:'DM Mono',monospace;color:var(--muted);">2次</span>
+      <span style="font-size:10px;font-family:'DM Mono',monospace;font-weight:600;color:#8b5cf6;min-width:32px;text-align:right;">17%</span>
+    </div><div style="display:flex;align-items:center;gap:7px;">
+      <span style="width:10px;height:10px;border-radius:2px;background:#06b6d4;flex-shrink:0;display:inline-block;"></span>
+      <span style="font-size:12px;flex:1;color:var(--text);font-weight:500;">台農</span>
+      <span style="font-size:11px;font-family:'DM Mono',monospace;color:var(--muted);">1次</span>
+      <span style="font-size:10px;font-family:'DM Mono',monospace;font-weight:600;color:#06b6d4;min-width:32px;text-align:right;">8%</span>
+    </div></div>
+          </div>
+        </div>
+
+        <!-- SUPPLIER STACKED -->
+        <div class="card">
+          <div class="sec-hd"><span class="sec-emoji">🏪</span><div class="sec-title">各供應商採購品項分布</div></div>
+          <div class="sec-sub">滑過色塊查看品項 · 數字 = 總次數</div>
+          <div class="sb-chart" id="sb-chart"><div class="sb-row">
+      <div class="sb-lbl">海洋直送</div>
+      <div class="sb-track"><div class="sb-seg" style="background: rgb(59, 130, 246); width: 8.33%;" data-w="8.33%" data-lbl="奶油 · 2次" data-color="#3b82f6"></div><div class="sb-seg" style="background: rgb(16, 185, 129); width: 4.17%;" data-w="4.17%" data-lbl="洋蔥 · 1次" data-color="#10b981"></div><div class="sb-seg" style="background: rgb(245, 158, 11); width: 8.33%;" data-w="8.33%" data-lbl="牛奶 · 2次" data-color="#f59e0b"></div><div class="sb-seg" style="background: rgb(239, 68, 68); width: 4.17%;" data-w="4.17%" data-lbl="番茄 · 1次" data-color="#ef4444"></div><div class="sb-seg" style="background: rgb(139, 92, 246); width: 16.67%;" data-w="16.67%" data-lbl="白米 · 4次" data-color="#8b5cf6"></div><div class="sb-seg" style="background: rgb(132, 204, 22); width: 4.17%;" data-w="4.17%" data-lbl="菇類 · 1次" data-color="#84cc16"></div><div class="sb-seg" style="background: rgb(20, 184, 166); width: 4.17%;" data-w="4.17%" data-lbl="豆腐 · 1次" data-color="#14b8a6"></div><div class="sb-seg" style="background: rgb(99, 102, 241); width: 16.67%;" data-w="16.67%" data-lbl="豬絞肉 · 4次" data-color="#6366f1"></div><div class="sb-seg" style="background: rgb(251, 146, 60); width: 4.17%;" data-w="4.17%" data-lbl="醬油 · 1次" data-color="#fb923c"></div><div class="sb-seg" style="background: rgb(167, 139, 250); width: 8.33%;" data-w="8.33%" data-lbl="雞蛋 · 2次" data-color="#a78bfa"></div><div class="sb-seg" style="background: rgb(52, 211, 153); width: 4.17%;" data-w="4.17%" data-lbl="食用油 · 1次" data-color="#34d399"></div><div class="sb-seg" style="background: rgb(251, 191, 36); width: 8.33%;" data-w="8.33%" data-lbl="馬鈴薯 · 2次" data-color="#fbbf24"></div><div class="sb-seg" style="background: rgb(74, 222, 128); width: 4.17%;" data-w="4.17%" data-lbl="鮭魚 · 1次" data-color="#4ade80"></div><div class="sb-seg" style="background: rgb(192, 132, 252); width: 4.17%;" data-w="4.17%" data-lbl="麵粉 · 1次" data-color="#c084fc"></div></div>
+      <div class="sb-total">24</div>
+    </div><div class="sb-row">
+      <div class="sb-lbl">大全農產</div>
+      <div class="sb-track"><div class="sb-seg" style="background: rgb(59, 130, 246); width: 4.17%;" data-w="4.17%" data-lbl="奶油 · 1次" data-color="#3b82f6"></div><div class="sb-seg" style="background: rgb(16, 185, 129); width: 4.17%;" data-w="4.17%" data-lbl="洋蔥 · 1次" data-color="#10b981"></div><div class="sb-seg" style="background: rgb(139, 92, 246); width: 4.17%;" data-w="4.17%" data-lbl="白米 · 1次" data-color="#8b5cf6"></div><div class="sb-seg" style="background: rgb(6, 182, 212); width: 4.17%;" data-w="4.17%" data-lbl="砂糖 · 1次" data-color="#06b6d4"></div><div class="sb-seg" style="background: rgb(132, 204, 22); width: 16.67%;" data-w="16.67%" data-lbl="菇類 · 4次" data-color="#84cc16"></div><div class="sb-seg" style="background: rgb(236, 72, 153); width: 8.33%;" data-w="8.33%" data-lbl="蝦仁 · 2次" data-color="#ec4899"></div><div class="sb-seg" style="background: rgb(20, 184, 166); width: 4.17%;" data-w="4.17%" data-lbl="豆腐 · 1次" data-color="#14b8a6"></div><div class="sb-seg" style="background: rgb(167, 139, 250); width: 12.5%;" data-w="12.50%" data-lbl="雞蛋 · 3次" data-color="#a78bfa"></div><div class="sb-seg" style="background: rgb(52, 211, 153); width: 8.33%;" data-w="8.33%" data-lbl="食用油 · 2次" data-color="#34d399"></div><div class="sb-seg" style="background: rgb(251, 191, 36); width: 4.17%;" data-w="4.17%" data-lbl="馬鈴薯 · 1次" data-color="#fbbf24"></div><div class="sb-seg" style="background: rgb(96, 165, 250); width: 4.17%;" data-w="4.17%" data-lbl="高麗菜 · 1次" data-color="#60a5fa"></div><div class="sb-seg" style="background: rgb(192, 132, 252); width: 4.17%;" data-w="4.17%" data-lbl="麵粉 · 1次" data-color="#c084fc"></div></div>
+      <div class="sb-total">19</div>
+    </div><div class="sb-row">
+      <div class="sb-lbl">長榮食材</div>
+      <div class="sb-track"><div class="sb-seg" style="background: rgb(59, 130, 246); width: 12.5%;" data-w="12.50%" data-lbl="奶油 · 3次" data-color="#3b82f6"></div><div class="sb-seg" style="background: rgb(16, 185, 129); width: 4.17%;" data-w="4.17%" data-lbl="洋蔥 · 1次" data-color="#10b981"></div><div class="sb-seg" style="background: rgb(245, 158, 11); width: 4.17%;" data-w="4.17%" data-lbl="牛奶 · 1次" data-color="#f59e0b"></div><div class="sb-seg" style="background: rgb(6, 182, 212); width: 4.17%;" data-w="4.17%" data-lbl="砂糖 · 1次" data-color="#06b6d4"></div><div class="sb-seg" style="background: rgb(249, 115, 22); width: 4.17%;" data-w="4.17%" data-lbl="紅蘿蔔 · 1次" data-color="#f97316"></div><div class="sb-seg" style="background: rgb(20, 184, 166); width: 4.17%;" data-w="4.17%" data-lbl="豆腐 · 1次" data-color="#14b8a6"></div><div class="sb-seg" style="background: rgb(99, 102, 241); width: 4.17%;" data-w="4.17%" data-lbl="豬絞肉 · 1次" data-color="#6366f1"></div><div class="sb-seg" style="background: rgb(163, 230, 53); width: 4.17%;" data-w="4.17%" data-lbl="起司 · 1次" data-color="#a3e635"></div><div class="sb-seg" style="background: rgb(251, 146, 60); width: 4.17%;" data-w="4.17%" data-lbl="醬油 · 1次" data-color="#fb923c"></div><div class="sb-seg" style="background: rgb(244, 63, 94); width: 8.33%;" data-w="8.33%" data-lbl="雞胸肉 · 2次" data-color="#f43f5e"></div><div class="sb-seg" style="background: rgb(167, 139, 250); width: 8.33%;" data-w="8.33%" data-lbl="雞蛋 · 2次" data-color="#a78bfa"></div><div class="sb-seg" style="background: rgb(52, 211, 153); width: 4.17%;" data-w="4.17%" data-lbl="食用油 · 1次" data-color="#34d399"></div><div class="sb-seg" style="background: rgb(192, 132, 252); width: 8.33%;" data-w="8.33%" data-lbl="麵粉 · 2次" data-color="#c084fc"></div></div>
+      <div class="sb-total">18</div>
+    </div><div class="sb-row">
+      <div class="sb-lbl">益昌</div>
+      <div class="sb-track"><div class="sb-seg" style="background: rgb(59, 130, 246); width: 4.17%;" data-w="4.17%" data-lbl="奶油 · 1次" data-color="#3b82f6"></div><div class="sb-seg" style="background: rgb(239, 68, 68); width: 4.17%;" data-w="4.17%" data-lbl="番茄 · 1次" data-color="#ef4444"></div><div class="sb-seg" style="background: rgb(249, 115, 22); width: 8.33%;" data-w="8.33%" data-lbl="紅蘿蔔 · 2次" data-color="#f97316"></div><div class="sb-seg" style="background: rgb(236, 72, 153); width: 4.17%;" data-w="4.17%" data-lbl="蝦仁 · 1次" data-color="#ec4899"></div><div class="sb-seg" style="background: rgb(20, 184, 166); width: 8.33%;" data-w="8.33%" data-lbl="豆腐 · 2次" data-color="#14b8a6"></div><div class="sb-seg" style="background: rgb(99, 102, 241); width: 4.17%;" data-w="4.17%" data-lbl="豬絞肉 · 1次" data-color="#6366f1"></div><div class="sb-seg" style="background: rgb(163, 230, 53); width: 4.17%;" data-w="4.17%" data-lbl="起司 · 1次" data-color="#a3e635"></div><div class="sb-seg" style="background: rgb(244, 63, 94); width: 4.17%;" data-w="4.17%" data-lbl="雞胸肉 · 1次" data-color="#f43f5e"></div><div class="sb-seg" style="background: rgb(167, 139, 250); width: 8.33%;" data-w="8.33%" data-lbl="雞蛋 · 2次" data-color="#a78bfa"></div><div class="sb-seg" style="background: rgb(52, 211, 153); width: 4.17%;" data-w="4.17%" data-lbl="食用油 · 1次" data-color="#34d399"></div><div class="sb-seg" style="background: rgb(251, 191, 36); width: 8.33%;" data-w="8.33%" data-lbl="馬鈴薯 · 2次" data-color="#fbbf24"></div><div class="sb-seg" style="background: rgb(74, 222, 128); width: 8.33%;" data-w="8.33%" data-lbl="鮭魚 · 2次" data-color="#4ade80"></div><div class="sb-seg" style="background: rgb(192, 132, 252); width: 4.17%;" data-w="4.17%" data-lbl="麵粉 · 1次" data-color="#c084fc"></div></div>
+      <div class="sb-total">18</div>
+    </div><div class="sb-row">
+      <div class="sb-lbl">台農</div>
+      <div class="sb-track"><div class="sb-seg" style="background: rgb(245, 158, 11); width: 4.17%;" data-w="4.17%" data-lbl="牛奶 · 1次" data-color="#f59e0b"></div><div class="sb-seg" style="background: rgb(139, 92, 246); width: 4.17%;" data-w="4.17%" data-lbl="白米 · 1次" data-color="#8b5cf6"></div><div class="sb-seg" style="background: rgb(6, 182, 212); width: 8.33%;" data-w="8.33%" data-lbl="砂糖 · 2次" data-color="#06b6d4"></div><div class="sb-seg" style="background: rgb(132, 204, 22); width: 8.33%;" data-w="8.33%" data-lbl="菇類 · 2次" data-color="#84cc16"></div><div class="sb-seg" style="background: rgb(236, 72, 153); width: 8.33%;" data-w="8.33%" data-lbl="蝦仁 · 2次" data-color="#ec4899"></div><div class="sb-seg" style="background: rgb(99, 102, 241); width: 4.17%;" data-w="4.17%" data-lbl="豬絞肉 · 1次" data-color="#6366f1"></div><div class="sb-seg" style="background: rgb(251, 146, 60); width: 8.33%;" data-w="8.33%" data-lbl="醬油 · 2次" data-color="#fb923c"></div><div class="sb-seg" style="background: rgb(244, 63, 94); width: 4.17%;" data-w="4.17%" data-lbl="雞胸肉 · 1次" data-color="#f43f5e"></div><div class="sb-seg" style="background: rgb(167, 139, 250); width: 4.17%;" data-w="4.17%" data-lbl="雞蛋 · 1次" data-color="#a78bfa"></div><div class="sb-seg" style="background: rgb(52, 211, 153); width: 4.17%;" data-w="4.17%" data-lbl="食用油 · 1次" data-color="#34d399"></div><div class="sb-seg" style="background: rgb(96, 165, 250); width: 4.17%;" data-w="4.17%" data-lbl="高麗菜 · 1次" data-color="#60a5fa"></div><div class="sb-seg" style="background: rgb(74, 222, 128); width: 4.17%;" data-w="4.17%" data-lbl="鮭魚 · 1次" data-color="#4ade80"></div><div class="sb-seg" style="background: rgb(192, 132, 252); width: 4.17%;" data-w="4.17%" data-lbl="麵粉 · 1次" data-color="#c084fc"></div></div>
+      <div class="sb-total">17</div>
+    </div><div class="sb-row">
+      <div class="sb-lbl">豐收行</div>
+      <div class="sb-track"><div class="sb-seg" style="background: rgb(16, 185, 129); width: 8.33%;" data-w="8.33%" data-lbl="洋蔥 · 2次" data-color="#10b981"></div><div class="sb-seg" style="background: rgb(245, 158, 11); width: 4.17%;" data-w="4.17%" data-lbl="牛奶 · 1次" data-color="#f59e0b"></div><div class="sb-seg" style="background: rgb(239, 68, 68); width: 4.17%;" data-w="4.17%" data-lbl="番茄 · 1次" data-color="#ef4444"></div><div class="sb-seg" style="background: rgb(132, 204, 22); width: 8.33%;" data-w="8.33%" data-lbl="菇類 · 2次" data-color="#84cc16"></div><div class="sb-seg" style="background: rgb(236, 72, 153); width: 4.17%;" data-w="4.17%" data-lbl="蝦仁 · 1次" data-color="#ec4899"></div><div class="sb-seg" style="background: rgb(251, 146, 60); width: 4.17%;" data-w="4.17%" data-lbl="醬油 · 1次" data-color="#fb923c"></div><div class="sb-seg" style="background: rgb(244, 63, 94); width: 4.17%;" data-w="4.17%" data-lbl="雞胸肉 · 1次" data-color="#f43f5e"></div><div class="sb-seg" style="background: rgb(167, 139, 250); width: 8.33%;" data-w="8.33%" data-lbl="雞蛋 · 2次" data-color="#a78bfa"></div><div class="sb-seg" style="background: rgb(52, 211, 153); width: 4.17%;" data-w="4.17%" data-lbl="食用油 · 1次" data-color="#34d399"></div><div class="sb-seg" style="background: rgb(251, 191, 36); width: 8.33%;" data-w="8.33%" data-lbl="馬鈴薯 · 2次" data-color="#fbbf24"></div><div class="sb-seg" style="background: rgb(74, 222, 128); width: 4.17%;" data-w="4.17%" data-lbl="鮭魚 · 1次" data-color="#4ade80"></div></div>
+      <div class="sb-total">15</div>
+    </div><div class="sb-row">
+      <div class="sb-lbl">鮮供應</div>
+      <div class="sb-track"><div class="sb-seg" style="background: rgb(59, 130, 246); width: 4.17%;" data-w="4.17%" data-lbl="奶油 · 1次" data-color="#3b82f6"></div><div class="sb-seg" style="background: rgb(245, 158, 11); width: 8.33%;" data-w="8.33%" data-lbl="牛奶 · 2次" data-color="#f59e0b"></div><div class="sb-seg" style="background: rgb(139, 92, 246); width: 4.17%;" data-w="4.17%" data-lbl="白米 · 1次" data-color="#8b5cf6"></div><div class="sb-seg" style="background: rgb(249, 115, 22); width: 4.17%;" data-w="4.17%" data-lbl="紅蘿蔔 · 1次" data-color="#f97316"></div><div class="sb-seg" style="background: rgb(99, 102, 241); width: 4.17%;" data-w="4.17%" data-lbl="豬絞肉 · 1次" data-color="#6366f1"></div><div class="sb-seg" style="background: rgb(163, 230, 53); width: 4.17%;" data-w="4.17%" data-lbl="起司 · 1次" data-color="#a3e635"></div><div class="sb-seg" style="background: rgb(52, 211, 153); width: 4.17%;" data-w="4.17%" data-lbl="食用油 · 1次" data-color="#34d399"></div><div class="sb-seg" style="background: rgb(251, 191, 36); width: 8.33%;" data-w="8.33%" data-lbl="馬鈴薯 · 2次" data-color="#fbbf24"></div><div class="sb-seg" style="background: rgb(96, 165, 250); width: 4.17%;" data-w="4.17%" data-lbl="高麗菜 · 1次" data-color="#60a5fa"></div><div class="sb-seg" style="background: rgb(74, 222, 128); width: 12.5%;" data-w="12.50%" data-lbl="鮭魚 · 3次" data-color="#4ade80"></div></div>
+      <div class="sb-total">14</div>
+    </div><div class="sb-row">
+      <div class="sb-lbl">綠源</div>
+      <div class="sb-track"><div class="sb-seg" style="background: rgb(59, 130, 246); width: 4.17%;" data-w="4.17%" data-lbl="奶油 · 1次" data-color="#3b82f6"></div><div class="sb-seg" style="background: rgb(16, 185, 129); width: 4.17%;" data-w="4.17%" data-lbl="洋蔥 · 1次" data-color="#10b981"></div><div class="sb-seg" style="background: rgb(239, 68, 68); width: 4.17%;" data-w="4.17%" data-lbl="番茄 · 1次" data-color="#ef4444"></div><div class="sb-seg" style="background: rgb(6, 182, 212); width: 4.17%;" data-w="4.17%" data-lbl="砂糖 · 1次" data-color="#06b6d4"></div><div class="sb-seg" style="background: rgb(249, 115, 22); width: 4.17%;" data-w="4.17%" data-lbl="紅蘿蔔 · 1次" data-color="#f97316"></div><div class="sb-seg" style="background: rgb(236, 72, 153); width: 16.67%;" data-w="16.67%" data-lbl="蝦仁 · 4次" data-color="#ec4899"></div><div class="sb-seg" style="background: rgb(99, 102, 241); width: 4.17%;" data-w="4.17%" data-lbl="豬絞肉 · 1次" data-color="#6366f1"></div><div class="sb-seg" style="background: rgb(244, 63, 94); width: 4.17%;" data-w="4.17%" data-lbl="雞胸肉 · 1次" data-color="#f43f5e"></div><div class="sb-seg" style="background: rgb(52, 211, 153); width: 4.17%;" data-w="4.17%" data-lbl="食用油 · 1次" data-color="#34d399"></div></div>
+      <div class="sb-total">12</div>
+    </div><div class="sb-legend">
+    <div class="sb-li">
+      <span class="sb-ld" style="background:#3b82f6"></span>奶油
+    </div>
+    <div class="sb-li">
+      <span class="sb-ld" style="background:#10b981"></span>洋蔥
+    </div>
+    <div class="sb-li">
+      <span class="sb-ld" style="background:#f59e0b"></span>牛奶
+    </div>
+    <div class="sb-li">
+      <span class="sb-ld" style="background:#ef4444"></span>番茄
+    </div>
+    <div class="sb-li">
+      <span class="sb-ld" style="background:#8b5cf6"></span>白米
+    </div>
+    <div class="sb-li">
+      <span class="sb-ld" style="background:#06b6d4"></span>砂糖
+    </div>
+    <div class="sb-li">
+      <span class="sb-ld" style="background:#f97316"></span>紅蘿蔔
+    </div>
+    <div class="sb-li">
+      <span class="sb-ld" style="background:#84cc16"></span>菇類
+    </div>
+    <div class="sb-li">
+      <span class="sb-ld" style="background:#ec4899"></span>蝦仁
+    </div>
+    <div class="sb-li">
+      <span class="sb-ld" style="background:#14b8a6"></span>豆腐
+    </div>
+    <div class="sb-li">
+      <span class="sb-ld" style="background:#6366f1"></span>豬絞肉
+    </div>
+    <div class="sb-li">
+      <span class="sb-ld" style="background:#a3e635"></span>起司
+    </div>
+    <div class="sb-li">
+      <span class="sb-ld" style="background:#fb923c"></span>醬油
+    </div>
+    <div class="sb-li">
+      <span class="sb-ld" style="background:#f43f5e"></span>雞胸肉
+    </div>
+    <div class="sb-li">
+      <span class="sb-ld" style="background:#a78bfa"></span>雞蛋
+    </div>
+    <div class="sb-li">
+      <span class="sb-ld" style="background:#34d399"></span>食用油
+    </div>
+    <div class="sb-li">
+      <span class="sb-ld" style="background:#fbbf24"></span>馬鈴薯
+    </div>
+    <div class="sb-li">
+      <span class="sb-ld" style="background:#60a5fa"></span>高麗菜
+    </div>
+    <div class="sb-li">
+      <span class="sb-ld" style="background:#4ade80"></span>鮭魚
+    </div>
+    <div class="sb-li">
+      <span class="sb-ld" style="background:#c084fc"></span>麵粉
+    </div></div></div>
+        </div>
+
+        <!-- MISSING -->
+        <div class="card a">
+          <div class="sec-hd"><span class="sec-emoji">⚠️</span><div class="sec-title" style="color:var(--amber)">待確認資料</div><span class="badge b-a" id="miss-cnt" style="margin-left:6px">14筆</span></div>
+          <div class="sec-sub">缺漏欄位，已隔離未納入分析</div>
+          <div id="miss-list">
+    <div class="miss-row">
+      <span class="badge b-r" style="width:52px;justify-content:center">📅 缺日期</span>
+      <span class="muted" style="font-family:'DM Mono',monospace;min-width:40px;font-size:11px">—</span>
+      <span style="flex:1;font-size:12px">白米</span>
+      <span class="muted mono" style="font-size:11px">NT$191.2</span>
+    </div>
+    <div class="miss-row">
+      <span class="badge b-r" style="width:52px;justify-content:center">📅 缺日期</span>
+      <span class="muted" style="font-family:'DM Mono',monospace;min-width:40px;font-size:11px">—</span>
+      <span style="flex:1;font-size:12px">馬鈴薯</span>
+      <span class="muted mono" style="font-size:11px">NT$374</span>
+    </div>
+    <div class="miss-row">
+      <span class="badge b-r" style="width:52px;justify-content:center">📅 缺日期</span>
+      <span class="muted" style="font-family:'DM Mono',monospace;min-width:40px;font-size:11px">—</span>
+      <span style="flex:1;font-size:12px">雞蛋</span>
+      <span class="muted mono" style="font-size:11px">NT$324.3</span>
+    </div>
+    <div class="miss-row">
+      <span class="badge b-r" style="width:52px;justify-content:center">📅 缺日期</span>
+      <span class="muted" style="font-family:'DM Mono',monospace;min-width:40px;font-size:11px">—</span>
+      <span style="flex:1;font-size:12px">豬絞肉</span>
+      <span class="muted mono" style="font-size:11px">NT$348.1</span>
+    </div>
+    <div class="miss-row">
+      <span class="badge b-a" style="width:52px;justify-content:center">🥗 缺食材</span>
+      <span class="muted" style="font-family:'DM Mono',monospace;min-width:40px;font-size:11px">05/13</span>
+      <span style="flex:1;font-size:12px">—</span>
+      <span class="muted mono" style="font-size:11px">NT$163.5</span>
+    </div>
+    <div class="miss-row">
+      <span class="badge b-b" style="width:52px;justify-content:center">🏪 缺供應商</span>
+      <span class="muted" style="font-family:'DM Mono',monospace;min-width:40px;font-size:11px">10/14</span>
+      <span style="flex:1;font-size:12px">鮭魚</span>
+      <span class="muted mono" style="font-size:11px">NT$284.9</span>
+    </div>
+    <div class="miss-row">
+      <span class="badge b-b" style="width:52px;justify-content:center">🏪 缺供應商</span>
+      <span class="muted" style="font-family:'DM Mono',monospace;min-width:40px;font-size:11px">05/20</span>
+      <span style="flex:1;font-size:12px">奶油</span>
+      <span class="muted mono" style="font-size:11px">NT$312.8</span>
+    </div>
+    <div class="miss-row">
+      <span class="badge b-r" style="width:52px;justify-content:center">📅 缺日期</span>
+      <span class="muted" style="font-family:'DM Mono',monospace;min-width:40px;font-size:11px">—</span>
+      <span style="flex:1;font-size:12px">食用油</span>
+      <span class="muted mono" style="font-size:11px">NT$265.3</span>
+    </div>
+    <div class="miss-row">
+      <span class="badge b-a" style="width:52px;justify-content:center">🥗 缺食材</span>
+      <span class="muted" style="font-family:'DM Mono',monospace;min-width:40px;font-size:11px">06/06</span>
+      <span style="flex:1;font-size:12px">—</span>
+      <span class="muted mono" style="font-size:11px">NT$271.2</span>
+    </div>
+    <div class="miss-row">
+      <span class="badge b-r" style="width:52px;justify-content:center">💰 缺單價</span>
+      <span class="muted" style="font-family:'DM Mono',monospace;min-width:40px;font-size:11px">10/22</span>
+      <span style="flex:1;font-size:12px">牛奶</span>
+      <span class="muted mono" style="font-size:11px">—</span>
+    </div>
+    <div class="miss-row">
+      <span class="badge b-a" style="width:52px;justify-content:center">🥗 缺食材</span>
+      <span class="muted" style="font-family:'DM Mono',monospace;min-width:40px;font-size:11px">06/14</span>
+      <span style="flex:1;font-size:12px">—</span>
+      <span class="muted mono" style="font-size:11px">NT$216.3</span>
+    </div>
+    <div class="miss-row">
+      <span class="badge b-b" style="width:52px;justify-content:center">🏪 缺供應商</span>
+      <span class="muted" style="font-family:'DM Mono',monospace;min-width:40px;font-size:11px">09/17</span>
+      <span style="flex:1;font-size:12px">高麗菜</span>
+      <span class="muted mono" style="font-size:11px">NT$377.7</span>
+    </div>
+    <div class="miss-row">
+      <span class="badge b-a" style="width:52px;justify-content:center">🥗 缺食材</span>
+      <span class="muted" style="font-family:'DM Mono',monospace;min-width:40px;font-size:11px">07/27</span>
+      <span style="flex:1;font-size:12px">—</span>
+      <span class="muted mono" style="font-size:11px">NT$273.7</span>
+    </div>
+    <div class="miss-row">
+      <span class="badge b-r" style="width:52px;justify-content:center">💰 缺單價</span>
+      <span class="muted" style="font-family:'DM Mono',monospace;min-width:40px;font-size:11px">06/10</span>
+      <span style="flex:1;font-size:12px">鮭魚</span>
+      <span class="muted mono" style="font-size:11px">—</span>
+    </div></div>
+        </div>
+
+      </div><!-- /rc -->
+    </div>
+
+  </div><!-- /board -->
+</div><!-- /vp -->
+
+<div id="tip"></div>
+
+<!-- DETAIL PANEL -->
+<div id="dp">
+  <div class="dp-hd">
+    <span class="dp-close" onclick="closeDp()">✕</span>
+    <div class="dp-name" id="dp-name">—</div>
+    <div id="dp-badges" style="display:flex;gap:5px;flex-wrap:wrap;margin-top:4px;"></div>
+  </div>
+  <div class="dp-body" id="dp-body"></div>
+</div>
+
+<script>
+// ══ DATA ══
+const RAW=[
+  {d:'2026/01/13',item:'奶油',price:48.9,sup:'長榮食材'},
+  {d:'2026/01/13',item:'奶油',price:48.9,sup:'長榮食材'},
+  {d:'2026/01/21',item:'奶油',price:430.6,sup:'益昌'},
+  {d:'2026/02/26',item:'奶油',price:354.7,sup:'綠源'},
+  {d:'2026/05/25',item:'奶油',price:372.2,sup:'海洋直送'},
+  {d:'2026/10/10',item:'奶油',price:319,sup:'大全農產'},
+  {d:'2026/10/22',item:'奶油',price:373.8,sup:'海洋直送'},
+  {d:'2026/10/26',item:'奶油',price:319.4,sup:'長榮食材'},
+  {d:'2026/11/07',item:'奶油',price:295,sup:'鮮供應'},
+  {d:'2026/01/18',item:'洋蔥',price:147.9,sup:'豐收行'},
+  {d:'2026/04/24',item:'洋蔥',price:175,sup:'綠源'},
+  {d:'2026/07/03',item:'洋蔥',price:301.1,sup:'大全農產'},
+  {d:'2026/09/01',item:'洋蔥',price:292,sup:'海洋直送'},
+  {d:'2026/09/21',item:'洋蔥',price:452.3,sup:'長榮食材'},
+  {d:'2026/12/24',item:'洋蔥',price:203.3,sup:'豐收行'},
+  {d:'2026/01/05',item:'牛奶',price:312.7,sup:'海洋直送'},
+  {d:'2026/02/07',item:'牛奶',price:52.5,sup:'海洋直送'},
+  {d:'2026/02/14',item:'牛奶',price:481.2,sup:'台農'},
+  {d:'2026/07/03',item:'牛奶',price:189.1,sup:'鮮供應'},
+  {d:'2026/09/05',item:'牛奶',price:103.5,sup:'長榮食材'},
+  {d:'2026/09/09',item:'牛奶',price:307.5,sup:'鮮供應'},
+  {d:'2026/11/11',item:'牛奶',price:467.8,sup:'豐收行'},
+  {d:'2026/01/13',item:'番茄',price:462.1,sup:'益昌'},
+  {d:'2026/01/24',item:'番茄',price:145.2,sup:'豐收行'},
+  {d:'2026/05/25',item:'番茄',price:172.6,sup:'海洋直送'},
+  {d:'2026/07/27',item:'番茄',price:238.9,sup:'綠源'},
+  {d:'2026/02/01',item:'白米',price:111.3,sup:'海洋直送'},
+  {d:'2026/02/02',item:'白米',price:432.4,sup:'海洋直送'},
+  {d:'2026/02/10',item:'白米',price:153.1,sup:'鮮供應'},
+  {d:'2026/03/07',item:'白米',price:498.8,sup:'台農'},
+  {d:'2026/05/01',item:'白米',price:397.1,sup:'海洋直送'},
+  {d:'2026/06/06',item:'白米',price:392.2,sup:'大全農產'},
+  {d:'2026/10/06',item:'白米',price:317,sup:'海洋直送'},
+  {d:'2026/02/26',item:'砂糖',price:334.6,sup:'大全農產'},
+  {d:'2026/03/11',item:'砂糖',price:217.5,sup:'台農'},
+  {d:'2026/03/23',item:'砂糖',price:296,sup:'長榮食材'},
+  {d:'2026/05/01',item:'砂糖',price:499,sup:'綠源'},
+  {d:'2026/08/12',item:'砂糖',price:273.9,sup:'台農'},
+  {d:'2026/03/04',item:'紅蘿蔔',price:163.1,sup:'益昌'},
+  {d:'2026/03/22',item:'紅蘿蔔',price:176.1,sup:'綠源'},
+  {d:'2026/05/17',item:'紅蘿蔔',price:138.2,sup:'鮮供應'},
+  {d:'2026/08/16',item:'紅蘿蔔',price:206,sup:'益昌'},
+  {d:'2026/09/05',item:'紅蘿蔔',price:335.2,sup:'長榮食材'},
+  {d:'2026/01/21',item:'菇類',price:30.5,sup:'大全農產'},
+  {d:'2026/01/25',item:'菇類',price:362.6,sup:'大全農產'},
+  {d:'2026/02/14',item:'菇類',price:370,sup:'台農'},
+  {d:'2026/03/03',item:'菇類',price:76.4,sup:'大全農產'},
+  {d:'2026/04/24',item:'菇類',price:170.3,sup:'豐收行'},
+  {d:'2026/06/02',item:'菇類',price:356.4,sup:'豐收行'},
+  {d:'2026/06/23',item:'菇類',price:288.3,sup:'海洋直送'},
+  {d:'2026/11/07',item:'菇類',price:41.7,sup:'台農'},
+  {d:'2026/12/20',item:'菇類',price:19,sup:'大全農產'},
+  {d:'2026/01/20',item:'蝦仁',price:421,sup:'綠源'},
+  {d:'2026/02/10',item:'蝦仁',price:486.5,sup:'益昌'},
+  {d:'2026/03/07',item:'蝦仁',price:216.3,sup:'台農'},
+  {d:'2026/03/18',item:'蝦仁',price:440.4,sup:'豐收行'},
+  {d:'2026/03/19',item:'蝦仁',price:102.1,sup:'綠源'},
+  {d:'2026/04/08',item:'蝦仁',price:297.7,sup:'綠源'},
+  {d:'2026/05/05',item:'蝦仁',price:353.3,sup:'台農'},
+  {d:'2026/06/03',item:'蝦仁',price:258.8,sup:'大全農產'},
+  {d:'2026/08/04',item:'蝦仁',price:237.6,sup:'綠源'},
+  {d:'2026/11/23',item:'蝦仁',price:134.4,sup:'大全農產'},
+  {d:'2026/02/06',item:'豆腐',price:269.8,sup:'大全農產'},
+  {d:'2026/06/14',item:'豆腐',price:399.4,sup:'海洋直送'},
+  {d:'2026/06/26',item:'豆腐',price:427.9,sup:'長榮食材'},
+  {d:'2026/10/10',item:'豆腐',price:154.3,sup:'益昌'},
+  {d:'2026/10/18',item:'豆腐',price:47.4,sup:'益昌'},
+  {d:'2026/03/27',item:'豬絞肉',price:178.8,sup:'海洋直送'},
+  {d:'2026/04/04',item:'豬絞肉',price:136.7,sup:'綠源'},
+  {d:'2026/05/09',item:'豬絞肉',price:184.4,sup:'鮮供應'},
+  {d:'2026/05/16',item:'豬絞肉',price:478.5,sup:'海洋直送'},
+  {d:'2026/07/11',item:'豬絞肉',price:24.5,sup:'長榮食材'},
+  {d:'2026/08/16',item:'豬絞肉',price:337.8,sup:'海洋直送'},
+  {d:'2026/09/09',item:'豬絞肉',price:352.3,sup:'台農'},
+  {d:'2026/12/04',item:'豬絞肉',price:371.6,sup:'海洋直送'},
+  {d:'2026/12/16',item:'豬絞肉',price:150.7,sup:'益昌'},
+  {d:'2026/03/27',item:'起司',price:15.3,sup:'鮮供應'},
+  {d:'2026/04/01',item:'起司',price:265.3,sup:'長榮食材'},
+  {d:'2026/04/04',item:'起司',price:102.2,sup:'益昌'},
+  {d:'2026/02/22',item:'醬油',price:181.6,sup:'台農'},
+  {d:'2026/04/15',item:'醬油',price:465.2,sup:'豐收行'},
+  {d:'2026/04/21',item:'醬油',price:455.8,sup:'海洋直送'},
+  {d:'2026/07/23',item:'醬油',price:450.1,sup:'台農'},
+  {d:'2026/09/13',item:'醬油',price:144.5,sup:'長榮食材'},
+  {d:'2026/01/01',item:'雞胸肉',price:427.4,sup:'長榮食材'},
+  {d:'2026/01/17',item:'雞胸肉',price:456,sup:'台農'},
+  {d:'2026/02/19',item:'雞胸肉',price:400.2,sup:'益昌'},
+  {d:'2026/05/12',item:'雞胸肉',price:430.3,sup:'綠源'},
+  {d:'2026/05/13',item:'雞胸肉',price:125.7,sup:'長榮食材'},
+  {d:'2026/09/25',item:'雞胸肉',price:379.4,sup:'豐收行'},
+  {d:'2026/02/06',item:'雞蛋',price:93,sup:'大全農產'},
+  {d:'2026/03/08',item:'雞蛋',price:394.2,sup:'台農'},
+  {d:'2026/05/02',item:'雞蛋',price:221.9,sup:'海洋直送'},
+  {d:'2026/05/18',item:'雞蛋',price:403.5,sup:'豐收行'},
+  {d:'2026/05/21',item:'雞蛋',price:167.3,sup:'長榮食材'},
+  {d:'2026/06/05',item:'雞蛋',price:67.6,sup:'大全農產'},
+  {d:'2026/06/10',item:'雞蛋',price:467,sup:'益昌'},
+  {d:'2026/07/07',item:'雞蛋',price:452.9,sup:'長榮食材'},
+  {d:'2026/08/20',item:'雞蛋',price:254,sup:'豐收行'},
+  {d:'2026/11/03',item:'雞蛋',price:110.8,sup:'益昌'},
+  {d:'2026/12/08',item:'雞蛋',price:266.6,sup:'大全農產'},
+  {d:'2026/12/12',item:'雞蛋',price:286.3,sup:'海洋直送'},
+  {d:'2026/01/25',item:'食用油',price:111.8,sup:'大全農產'},
+  {d:'2026/03/08',item:'食用油',price:288.6,sup:'大全農產'},
+  {d:'2026/03/23',item:'食用油',price:499,sup:'益昌'},
+  {d:'2026/04/08',item:'食用油',price:139.6,sup:'台農'},
+  {d:'2026/04/17',item:'食用油',price:158,sup:'豐收行'},
+  {d:'2026/06/02',item:'食用油',price:374.7,sup:'長榮食材'},
+  {d:'2026/07/19',item:'食用油',price:396,sup:'鮮供應'},
+  {d:'2026/11/15',item:'食用油',price:297.9,sup:'綠源'},
+  {d:'2026/11/27',item:'食用油',price:292.2,sup:'海洋直送'},
+  {d:'2026/01/05',item:'馬鈴薯',price:36.4,sup:'大全農產'},
+  {d:'2026/01/09',item:'馬鈴薯',price:422.5,sup:'益昌'},
+  {d:'2026/01/28',item:'馬鈴薯',price:355.7,sup:'益昌'},
+  {d:'2026/03/03',item:'馬鈴薯',price:325.2,sup:'豐收行'},
+  {d:'2026/03/15',item:'馬鈴薯',price:179.3,sup:'海洋直送'},
+  {d:'2026/06/09',item:'馬鈴薯',price:235.3,sup:'海洋直送'},
+  {d:'2026/06/19',item:'馬鈴薯',price:57.9,sup:'鮮供應'},
+  {d:'2026/08/28',item:'馬鈴薯',price:149.1,sup:'豐收行'},
+  {d:'2026/11/19',item:'馬鈴薯',price:179.4,sup:'鮮供應'},
+  {d:'2026/02/15',item:'高麗菜',price:268.9,sup:'大全農產'},
+  {d:'2026/03/20',item:'高麗菜',price:341.7,sup:'台農'},
+  {d:'2026/12/08',item:'高麗菜',price:435.1,sup:'鮮供應'},
+  {d:'2026/01/09',item:'鮭魚',price:192.4,sup:'鮮供應'},
+  {d:'2026/03/11',item:'鮭魚',price:134.9,sup:'台農'},
+  {d:'2026/04/12',item:'鮭魚',price:386.6,sup:'益昌'},
+  {d:'2026/04/28',item:'鮭魚',price:77.7,sup:'海洋直送'},
+  {d:'2026/04/28',item:'鮭魚',price:409.8,sup:'鮮供應'},
+  {d:'2026/05/17',item:'鮭魚',price:323.3,sup:'益昌'},
+  {d:'2026/06/22',item:'鮭魚',price:213.8,sup:'鮮供應'},
+  {d:'2026/08/28',item:'鮭魚',price:465.5,sup:'豐收行'},
+  {d:'2026/02/15',item:'麵粉',price:469.7,sup:'大全農產'},
+  {d:'2026/06/11',item:'麵粉',price:32.2,sup:'長榮食材'},
+  {d:'2026/06/18',item:'麵粉',price:266.6,sup:'長榮食材'},
+  {d:'2026/06/26',item:'麵粉',price:489.7,sup:'益昌'},
+  {d:'2026/10/02',item:'麵粉',price:310.8,sup:'台農'},
+  {d:'2026/12/04',item:'麵粉',price:165.8,sup:'海洋直送'}
+];
+const MISSING=[
+  {issue:'缺日期',item:'白米',price:191.2,sup:'益昌'},
+  {issue:'缺日期',item:'馬鈴薯',price:374,sup:'鮮供應'},
+  {issue:'缺日期',item:'雞蛋',price:324.3,sup:'台農'},
+  {issue:'缺日期',item:'豬絞肉',price:348.1,sup:'益昌'},
+  {issue:'缺食材',d:'05/13',price:163.5,sup:'台農'},
+  {issue:'缺供應商',d:'10/14',item:'鮭魚',price:284.9},
+  {issue:'缺供應商',d:'05/20',item:'奶油',price:312.8},
+  {issue:'缺日期',item:'食用油',price:265.3,sup:'益昌'},
+  {issue:'缺食材',d:'06/06',price:271.2,sup:'綠源'},
+  {issue:'缺單價',d:'10/22',item:'牛奶',sup:'綠源'},
+  {issue:'缺食材',d:'06/14',price:216.3,sup:'綠源'},
+  {issue:'缺供應商',d:'09/17',item:'高麗菜',price:377.7},
+  {issue:'缺食材',d:'07/27',price:273.7,sup:'長榮食材'},
+  {issue:'缺單價',d:'06/10',item:'鮭魚',sup:'豐收行'}
+];
+const IC=['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#f97316','#84cc16',
+  '#ec4899','#14b8a6','#6366f1','#a3e635','#fb923c','#f43f5e','#a78bfa','#34d399',
+  '#fbbf24','#60a5fa','#4ade80','#c084fc'];
+
+// ── STATS ──
+function calcS(){
+  const m={};
+  RAW.forEach(r=>{if(!m[r.item])m[r.item]=[];m[r.item].push(r);});
+  const o={};
+  Object.keys(m).forEach(item=>{
+    const rows=m[item].slice().sort((a,b)=>a.d.localeCompare(b.d));
+    const pr=rows.map(r=>r.price);
+    const avg=pr.reduce((s,v)=>s+v,0)/pr.length;
+    const mn=Math.min(...pr),mx=Math.max(...pr);
+    const lat=rows[rows.length-1];
+    const minR=rows.find(r=>r.price===mn);
+    o[item]={rows,avg,min:mn,max:mx,latest:lat,minSup:minR?.sup||'',
+      vol:Math.round((mx-mn)/avg*100),
+      diff:Math.round((lat.price-avg)/avg*100)};
+  });
+  return o;
+}
+const S=calcS();
+const ITEMS=Object.keys(S).sort((a,b)=>S[b].vol-S[a].vol);
+const ITEMS_ALPHA=Object.keys(S).sort();
+
+function supData(){
+  const m={};
+  RAW.forEach(r=>{if(!m[r.sup])m[r.sup]={};m[r.sup][r.item]=(m[r.sup][r.item]||0)+1;});
+  return m;
+}
+const SD=supData();
+const SUPS=Object.keys(SD).sort((a,b)=>{
+  const ta=Object.values(SD[a]).reduce((s,v)=>s+v,0);
+  const tb=Object.values(SD[b]).reduce((s,v)=>s+v,0);
+  return tb-ta;
+});
+
+// ── KPI ──
+function renderKPI(){
+  const hv=ITEMS.filter(i=>S[i].vol>=80).length;
+  const pr=ITEMS.filter(i=>S[i].diff>0).length;
+  const bu=ITEMS.filter(i=>S[i].diff<-10).length;
+  const kpis=[
+    {emoji:'🥦',label:'品項總數',num:ITEMS.length,sub:'8 供應商 · 116 筆有效記錄',color:'var(--blue)',cls:''},
+    {emoji:'🌡️',label:'高波動品項',num:hv,sub:'波動幅度 ≥ 80%，需重點監控',color:'var(--red)',cls:''},
+    {emoji:'🔴',label:'優先替換',num:pr,sub:'最新價高於均價，建議換供應商',color:'var(--red)',cls:''},
+    {emoji:'🛒',label:'建議加購',num:bu,sub:'最新價低於均價 10%+，低點進貨',color:'var(--green)',cls:''},
+  ];
+  document.getElementById('kpi-row').innerHTML=kpis.map(k=>`
+    <div class="kpi" data-emoji="${k.emoji}" style="border-left-color:${k.color}">
+      <div class="kpi-lbl">${k.emoji} ${k.label}</div>
+      <div class="kpi-num" style="color:${k.color}">${k.num}</div>
+      <div class="kpi-sub">${k.sub}</div>
+    </div>`).join('');
+}
+
+// ── VOL ──
+let selItem='雞蛋';
+function renderVol(){
+  const maxV=Math.max(...ITEMS.map(i=>S[i].vol));
+  document.getElementById('vol-chart').innerHTML=ITEMS.map(item=>{
+    const s=S[item];
+    const pct=Math.round(s.vol/maxV*100);
+    const bc=s.vol>=150?'var(--red)':s.vol>=80?'var(--amber)':'var(--green)';
+    const badge=s.vol>=150?'<span class="badge b-r">🔴 極高</span>':s.vol>=80?'<span class="badge b-a">🟠 高</span>':'<span class="badge b-g">🟢 穩定</span>';
+    const pc=s.diff>10?'var(--red)':s.diff<-10?'var(--green)':'var(--muted)';
+    return `<div class="vol-row${item===selItem?' sel':''}" onclick="selIt('${item}')">
+      <div class="vn">${item}</div>
+      <div class="vtrack"><div class="vfill" style="background:${bc}" data-w="${pct}%">${s.vol}%</div></div>
+      <div class="vinfo">
+        <div class="vsup">${s.latest.sup} · ${s.latest.d.replace('2026/','')}</div>
+        <div class="vprice" style="color:${pc}">NT$${s.latest.price.toFixed(0)} <span style="font-size:10px">(${s.diff>0?'+':''}${s.diff}% vs 均)</span></div>
+      </div>
+      <div class="vbadge">${badge}</div>
+    </div>`;
+  }).join('');
+  setTimeout(()=>{document.querySelectorAll('.vfill').forEach(e=>{e.style.width=e.dataset.w;});},60);
+}
+function selIt(item){
+  selItem=item;
+  document.querySelectorAll('.vol-row').forEach(r=>{
+    r.classList.toggle('sel',r.querySelector('.vn').textContent===item);
+  });
+  renderTrend(item);
+  // sync pie select
+  const ps=document.getElementById('pie-select');
+  if(ps){ps.value=item;renderPie(item);}
+  openDp(item);
+}
+
+// ── PRIORITY ──
+function renderPri(){
+  const list=ITEMS.filter(i=>S[i].diff>0).sort((a,b)=>S[b].diff-S[a].diff);
+  document.getElementById('pri-tbl').innerHTML=`
+    <thead><tr>
+      <th style="width:26px">#</th><th>品項</th><th>最新供應商</th>
+      <th>最新價</th><th>漲幅</th><th>建議換至</th><th>歷史最低</th><th>可省/單</th>
+    </tr></thead>
+    <tbody>${list.map((item,i)=>{
+      const s=S[item],can=s.latest.sup!==s.minSup;
+      const sv=(s.latest.price-s.min).toFixed(0);
+      const rc=i===0?'r1':i===1?'r2':i===2?'r3':'rn';
+      return `<tr onclick="selIt('${item}')">
+        <td><span class="rank ${rc}">${i+1}</span></td>
+        <td style="font-weight:700">${item}</td>
+        <td class="muted" style="font-size:11px">${s.latest.sup}</td>
+        <td class="mono red">NT$${s.latest.price.toFixed(0)}</td>
+        <td><span class="badge b-r">+${s.diff}%</span></td>
+        <td style="font-size:11px;color:var(--green);font-weight:600">${can?s.minSup:'—'}</td>
+        <td class="mono green">NT$${s.min.toFixed(0)}</td>
+        <td class="mono" style="color:${can?'var(--green)':'var(--faint)'}">${can?'-'+sv:'—'}</td>
+      </tr>`;
+    }).join('')}</tbody>`;
+}
+
+// ── BUY ──
+function renderBuy(){
+  const list=ITEMS.filter(i=>S[i].diff<-10).sort((a,b)=>S[a].diff-S[b].diff);
+  document.getElementById('buy-tbl').innerHTML=`
+    <thead><tr>
+      <th>品項</th><th>最新供應商</th><th>最新成交</th><th>年度均價</th><th>低於均</th><th>每單節省</th>
+    </tr></thead>
+    <tbody>${list.map(item=>{
+      const s=S[item],sv=(s.avg-s.latest.price).toFixed(0);
+      return `<tr onclick="selIt('${item}')">
+        <td style="font-weight:700">${item}</td>
+        <td class="muted" style="font-size:11px">${s.latest.sup}</td>
+        <td class="mono green">NT$${s.latest.price.toFixed(0)}</td>
+        <td class="mono muted">NT$${s.avg.toFixed(0)}</td>
+        <td><span class="badge b-g">${s.diff}%</span></td>
+        <td class="mono green">+NT$${sv}</td>
+      </tr>`;
+    }).join('')}</tbody>`;
+}
+
+// ── TREND ──
+function renderTrend(item){
+  const s=S[item];
+  const pr=s.rows.map(r=>r.price);
+  const mn=Math.min(...pr),mx=Math.max(...pr),rng=mx-mn||1;
+  const lc=s.diff<-10?'#0c9060':s.diff>10?'#cc2d3a':'#1a4fc4';
+
+  // spark
+  const W=332,H=78,p=6;
+  const pts=s.rows.map((r,i)=>[(p+i/(s.rows.length-1)*(W-p*2)).toFixed(1),(p+(1-(r.price-mn)/rng)*(H-p*2)).toFixed(1)]);
+  const avgY=(p+(1-(s.avg-mn)/rng)*(H-p*2)).toFixed(1);
+  document.getElementById('spark-svg').innerHTML=`
+    <defs><linearGradient id="sg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="${lc}" stop-opacity=".12"/>
+      <stop offset="100%" stop-color="${lc}" stop-opacity="0"/>
+    </linearGradient></defs>
+    <polygon points="${pts[0][0]},${H} ${pts.map(p=>p.join(',')).join(' ')} ${pts[pts.length-1][0]},${H}" fill="url(#sg)"/>
+    <polyline points="${pts.map(p=>p.join(',')).join(' ')}" fill="none" stroke="${lc}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+    <line x1="${p}" y1="${avgY}" x2="${W-p}" y2="${avgY}" stroke="#a86e00" stroke-width="1" stroke-dasharray="4,3"/>
+    <text x="${W-p+2}" y="${avgY}" font-size="8" fill="#a86e00" font-family="'DM Mono',monospace" dominant-baseline="middle">均</text>
+    ${pts.map((pt,i)=>`<circle cx="${pt[0]}" cy="${pt[1]}" r="3.5" fill="${lc}" stroke="white" stroke-width="1.5" style="cursor:pointer"><title>${s.rows[i].d} · ${s.rows[i].sup} · NT$${s.rows[i].price.toFixed(1)}</title></circle>`).join('')}
+    <circle cx="${pts[pts.length-1][0]}" cy="${(p+(1-(s.latest.price-mn)/rng)*(H-p*2)).toFixed(1)}" r="5.5" fill="${lc}" stroke="white" stroke-width="2"/>`;
+  document.getElementById('spark-dates').innerHTML=`<span>${s.rows[0].d.replace('2026/','')}</span><span>${s.rows[s.rows.length-1].d.replace('2026/','')}</span>`;
+
+  // dist
+  const dW=340,dH=88,dP=18,std=Math.max((mx-mn)/4,1);
+  const xMn=mn-std*.4,xMx=mx+std*.4;
+  const norm=x=>Math.exp(-.5*((x-s.avg)/std)**2);
+  const cpts=Array.from({length:101},(_,i)=>{
+    const x=xMn+i/100*(xMx-xMn);
+    return[(dP+i/100*(dW-dP*2)).toFixed(1),(dP+(1-norm(x))*(dH-dP*2)).toFixed(1)];
+  });
+  const latX=(dP+(s.latest.price-xMn)/(xMx-xMn)*(dW-dP*2)).toFixed(1);
+  const latY=(dP+(1-norm(s.latest.price))*(dH-dP*2)).toFixed(1);
+  const avgX=(dP+(s.avg-xMn)/(xMx-xMn)*(dW-dP*2)).toFixed(1);
+  document.getElementById('dist-svg').innerHTML=`
+    <defs><linearGradient id="dg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1a4fc4" stop-opacity=".14"/>
+      <stop offset="100%" stop-color="#1a4fc4" stop-opacity="0"/>
+    </linearGradient></defs>
+    <polygon points="${cpts[0][0]},${dH-dP} ${cpts.map(p=>p.join(',')).join(' ')} ${cpts[100][0]},${dH-dP}" fill="url(#dg)"/>
+    <polyline points="${cpts.map(p=>p.join(',')).join(' ')}" fill="none" stroke="#1a4fc4" stroke-width="2" stroke-linejoin="round"/>
+    <line x1="${avgX}" y1="${dP}" x2="${avgX}" y2="${dH-dP}" stroke="#a86e00" stroke-width="1.5" stroke-dasharray="4,3"/>
+    <text x="${avgX}" y="${dH-dP+10}" text-anchor="middle" font-size="8" fill="#a86e00" font-family="'DM Mono',monospace">均價</text>
+    <circle cx="${latX}" cy="${latY}" r="5.5" fill="${lc}" stroke="white" stroke-width="2"/>
+    <text x="${latX}" y="${parseFloat(latY)-9}" text-anchor="middle" font-size="9" fill="${lc}" font-family="'DM Mono',monospace" font-weight="700">最新</text>`;
+  document.getElementById('dist-lbl').innerHTML=`<span>NT$${mn.toFixed(0)}</span><span style="color:#1a4fc4">←低　高→</span><span>NT$${mx.toFixed(0)}</span>`;
+
+  document.getElementById('trend-title').textContent=`${item} — 採購走勢`;
+  document.getElementById('trend-sub').textContent=`${s.rows.length} 筆記錄 · 滑過圓點查詳情`;
+  document.getElementById('tstats').innerHTML=`
+    <div class="ts"><div class="tsl">📉 年度最低</div><div class="tsv" style="color:var(--green)">NT$${s.min.toFixed(0)}</div><div class="tss">${s.minSup}</div></div>
+    <div class="ts"><div class="tsl">📊 年度均價</div><div class="tsv" style="color:var(--amber)">NT$${s.avg.toFixed(0)}</div></div>
+    <div class="ts"><div class="tsl">🕐 最新採購</div><div class="tsv" style="color:${s.diff>10?'var(--red)':s.diff<-10?'var(--green)':'var(--text)'}">NT$${s.latest.price.toFixed(0)}</div><div class="tss">${s.diff>0?'+':''}${s.diff}% vs 均</div></div>`;
+}
+
+// ── SUPPLIER STACKED ──
+function renderSB(){
+  const iMap={};
+  ITEMS_ALPHA.forEach((item,i)=>{iMap[item]=IC[i%IC.length];});
+  const allItems=new Set();
+  SUPS.forEach(s=>Object.keys(SD[s]).forEach(i=>allItems.add(i)));
+  const itemArr=Array.from(allItems).sort();
+  const maxTotal=Math.max(...SUPS.map(s=>Object.values(SD[s]).reduce((a,b)=>a+b,0)));
+  const tip=document.getElementById('tip');
+
+  const rows=SUPS.map(sup=>{
+    const data=SD[sup];
+    const total=Object.values(data).reduce((a,b)=>a+b,0);
+    const segs=itemArr.filter(i=>data[i]).map(item=>{
+      const cnt=data[item];
+      const pct=(cnt/maxTotal*100).toFixed(2);
+      const color=iMap[item];
+      return `<div class="sb-seg" style="background:${color}" data-w="${pct}%" data-lbl="${item} · ${cnt}次" data-color="${color}"></div>`;
+    }).join('');
+    return `<div class="sb-row">
+      <div class="sb-lbl">${sup}</div>
+      <div class="sb-track">${segs}</div>
+      <div class="sb-total">${total}</div>
+    </div>`;
+  }).join('');
+
+  const legend=itemArr.map(item=>`
+    <div class="sb-li">
+      <span class="sb-ld" style="background:${iMap[item]}"></span>${item}
+    </div>`).join('');
+
+  document.getElementById('sb-chart').innerHTML=rows+`<div class="sb-legend">${legend}</div>`;
+
+  // animate + tooltip
+  setTimeout(()=>{
+    document.querySelectorAll('.sb-seg').forEach(el=>{
+      el.style.width=el.dataset.w;
+      el.addEventListener('mouseenter',()=>{
+        tip.innerHTML=`<span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${el.dataset.color};margin-right:6px;vertical-align:middle;"></span>${el.dataset.lbl}`;
+        tip.style.opacity='1';
+      });
+      el.addEventListener('mousemove',e=>{
+        tip.style.left=(e.clientX+16)+'px';
+        tip.style.top=(e.clientY-42)+'px';
+      });
+      el.addEventListener('mouseleave',()=>{tip.style.opacity='0';});
+    });
+  },80);
+}
+
+// ── MISSING ──
+function renderMissing(){
+  document.getElementById('miss-cnt').textContent=MISSING.length+'筆';
+  const bg={'缺日期':'b-r','缺食材':'b-a','缺供應商':'b-b','缺單價':'b-r'};
+  const em={'缺日期':'📅','缺食材':'🥗','缺供應商':'🏪','缺單價':'💰'};
+  document.getElementById('miss-list').innerHTML=MISSING.map(r=>`
+    <div class="miss-row">
+      <span class="badge ${bg[r.issue]||'b-a'}" style="width:52px;justify-content:center">${em[r.issue]||'⚠️'} ${r.issue}</span>
+      <span class="muted" style="font-family:'DM Mono',monospace;min-width:40px;font-size:11px">${r.d||'—'}</span>
+      <span style="flex:1;font-size:12px">${r.item||'—'}</span>
+      <span class="muted mono" style="font-size:11px">${r.price!=null?'NT$'+r.price:'—'}</span>
+    </div>`).join('');
+}
+
+// ── DETAIL ──
+function openDp(item){
+  const s=S[item],isBuy=s.diff<-10,isPri=s.diff>10&&s.latest.sup!==s.minSup,can=s.latest.sup!==s.minSup;
+  document.getElementById('dp-name').textContent='  '+item;
+  document.getElementById('dp-badges').innerHTML=`
+    <span class="badge ${s.vol>=150?'b-r':s.vol>=80?'b-a':'b-g'}">📊 波動 ${s.vol}%</span>
+    ${isPri?'<span class="badge b-r">🔴 優先替換</span>':''}
+    ${isBuy?'<span class="badge b-g">✅ 建議加購</span>':''}
+    ${!isPri&&!isBuy?'<span class="badge b-b">👁 觀察中</span>':''}`;
+  const pr=s.rows.map(r=>r.price),mn=Math.min(...pr),mx=Math.max(...pr),rng=mx-mn||1;
+  const W=320,H=58,p=6;
+  const pts=s.rows.map((r,i)=>[(p+i/(s.rows.length-1)*(W-p*2)).toFixed(1),(p+(1-(r.price-mn)/rng)*(H-p*2)).toFixed(1)]);
+  const lc=isBuy?'#0c9060':isPri?'#cc2d3a':'#1a4fc4';
+  const avgY=(p+(1-(s.avg-mn)/rng)*(H-p*2)).toFixed(1);
+  document.getElementById('dp-body').innerHTML=`
+    <div class="dp-kg">
+      <div class="dp-k"><div class="dp-kl">💰 最新採購價</div><div class="dp-kv" style="color:${s.diff>10?'var(--red)':s.diff<-10?'var(--green)':'var(--text)'}">${s.latest.price.toFixed(1)}</div></div>
+      <div class="dp-k"><div class="dp-kl">📈 vs 年度均價</div><div class="dp-kv" style="color:${s.diff>0?'var(--red)':'var(--green)'}">${s.diff>0?'+':''}${s.diff}%</div></div>
+      <div class="dp-k"><div class="dp-kl">📉 年度最低</div><div class="dp-kv" style="color:var(--green)">${s.min.toFixed(1)}</div></div>
+      <div class="dp-k"><div class="dp-kl">📈 年度最高</div><div class="dp-kv" style="color:var(--red)">${s.max.toFixed(1)}</div></div>
+    </div>
+    <div style="background:var(--s2);border:1px solid var(--border);border-radius:9px;padding:10px;margin-bottom:10px;">
+      <svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
+        <polyline points="${pts.map(p=>p.join(',')).join(' ')}" fill="none" stroke="${lc}" stroke-width="1.8" stroke-linejoin="round"/>
+        <line x1="${p}" y1="${avgY}" x2="${W-p}" y2="${avgY}" stroke="#a86e00" stroke-width="1" stroke-dasharray="3,3"/>
+        ${pts.map((pt,i)=>`<circle cx="${pt[0]}" cy="${pt[1]}" r="3" fill="${lc}" stroke="white" stroke-width="1.5"><title>NT$${s.rows[i].price.toFixed(1)}</title></circle>`).join('')}
+      </svg>
+      <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--faint);margin-top:2px;font-family:'DM Mono',monospace">
+        <span>${s.rows[0].d.replace('2026/','')}</span><span style="color:#a86e00">均 NT$${s.avg.toFixed(0)}</span><span>${s.rows[s.rows.length-1].d.replace('2026/','')}</span>
+      </div>
+    </div>
+    <div class="dp-sec">🏪 最新採購</div>
+    <div class="dp-row"><span class="dp-l">採購日期</span><span class="dp-v">${s.latest.d}</span></div>
+    <div class="dp-row"><span class="dp-l">供應商</span><span class="dp-stag">${s.latest.sup}</span></div>
+    <div class="dp-row"><span class="dp-l">成交價</span><span class="dp-v" style="color:${lc}">NT$ ${s.latest.price.toFixed(1)}</span></div>
+    <div class="dp-sec">📉 歷史最低</div>
+    <div class="dp-row"><span class="dp-l">最低供應商</span><span class="dp-stag">${s.minSup}</span></div>
+    <div class="dp-row"><span class="dp-l">歷史最低價</span><span class="dp-v" style="color:var(--green)">NT$ ${s.min.toFixed(1)}</span></div>
+    ${can?`<div class="dp-row"><span class="dp-l">💡 換供應商可省</span><span class="dp-v" style="color:var(--green);font-weight:700">NT$ ${(s.latest.price-s.min).toFixed(1)}/單</span></div>`:''}
+    <div class="dp-sec">📋 完整採購記錄</div>
+    <div class="dp-hist">${s.rows.slice().reverse().map(r=>{
+      const d2=Math.round((r.price-s.avg)/s.avg*100);
+      return `<div class="dp-row">
+        <span class="dp-l" style="font-size:11px">${r.d.replace('2026/','')}</span>
+        <span style="flex:1;font-size:11px;color:var(--muted);padding:0 7px">${r.sup}</span>
+        <span class="dp-v" style="color:${d2>12?'var(--red)':d2<-12?'var(--green)':'var(--muted)'}">NT$${r.price.toFixed(1)}</span>
+      </div>`;}).join('')}</div>`;
+  document.getElementById('dp').classList.add('open');
+}
+function closeDp(){document.getElementById('dp').classList.remove('open');}
+
+// ══════════════════════════════════════════
+// 原生捲軸 + 滾輪縮放 — 核心邏輯
+// ══════════════════════════════════════════
+// 一般滾輪：交給瀏覽器原生上下捲動
+// Ctrl/⌘ + 滾輪：縮放整個 dashboard，避免「滾動」和「縮放」互相搶事件
+let sc=1;
+const vp=document.getElementById('vp');
+const board=document.getElementById('board');
+
+function updateScrollSpace(){
+  // CSS transform 不會改變文件流高度，所以要把容器高度補到縮放後的高度。
+  const naturalH=board.scrollHeight;
+  vp.style.minHeight=Math.ceil(naturalH*sc+44)+'px';
+}
+
+function applyT(){
+  board.style.transform=`scale(${sc.toFixed(4)})`;
+  updateScrollSpace();
+  const pct=Math.round(sc*100);
+  const pctEl=document.getElementById('zoom-pct');
+  if(pctEl) pctEl.textContent=pct+'%';
+}
+
+function zoomAt(clientX,clientY,factor){
+  const ns=Math.max(.55,Math.min(1.8,sc*factor));
+  if(Math.abs(ns-sc)<0.0001) return;
+
+  const before=board.getBoundingClientRect();
+  const relY=(clientY-before.top)/sc;
+  sc=ns;
+  applyT();
+
+  // 讓游標所在的 dashboard 位置盡量維持在同一視覺位置。
+  const after=board.getBoundingClientRect();
+  const delta=(after.top+relY*sc)-clientY;
+  if(Number.isFinite(delta)) window.scrollBy(0,delta);
+}
+
+// 普通滾輪保留給「原生捲軸上下滾動」。
+// 需要縮放時，用 Ctrl/⌘ + 滾輪；觸控板 pinch 也會走 ctrlKey wheel 事件。
+window.addEventListener('wheel',function(e){
+  if(!(e.ctrlKey||e.metaKey)) return;
+  e.preventDefault();
+  const factor=Math.exp(-e.deltaY*0.0025);
+  zoomAt(e.clientX,e.clientY,factor);
+},{passive:false});
+
+function zoomStep(dir){
+  const rect=board.getBoundingClientRect();
+  zoomAt(rect.left+rect.width/2,window.innerHeight/2,dir>0?1.12:0.89);
+}
+
+function resetView(){
+  sc=1;
+  board.style.transition='transform .25s cubic-bezier(.16,1,.3,1)';
+  applyT();
+  window.scrollTo({top:0,behavior:'smooth'});
+  setTimeout(()=>{board.style.transition='';},300);
+}
+
+function dlFile(){
+  const b=new Blob([document.documentElement.outerHTML],{type:'text/html'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(b);
+  a.download='食材成本波動儀表板_2026_scroll.html';a.click();
+}
+
+window.addEventListener('resize',applyT);
+requestAnimationFrame(applyT);
+
+// ── PIE CHART ──
+const PIE_COLORS=['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#f97316','#84cc16','#ec4899','#14b8a6'];
+function initPieSelect(){
+  const sel=document.getElementById('pie-select');
+  ITEMS_ALPHA.forEach(item=>{
+    const o=document.createElement('option');
+    o.value=item; o.textContent=item;
+    sel.appendChild(o);
+  });
+  sel.value='雞蛋';
+  renderPie('雞蛋');
+}
+function renderPie(item){
+  // count per supplier for this item
+  const cnt={};
+  RAW.filter(r=>r.item===item).forEach(r=>{cnt[r.sup]=(cnt[r.sup]||0)+1;});
+  const total=Object.values(cnt).reduce((a,b)=>a+b,0);
+  const entries=Object.entries(cnt).sort((a,b)=>b[1]-a[1]);
+
+  const canvas=document.getElementById('pie-canvas');
+  const ctx=canvas.getContext('2d');
+  const W=150,H=150,cx=W/2,cy=H/2,R=62,iR=28;
+  ctx.clearRect(0,0,W,H);
+
+  // draw donut slices
+  let angle=-Math.PI/2;
+  entries.forEach(([sup,n],i)=>{
+    const slice=(n/total)*Math.PI*2;
+    const color=PIE_COLORS[i%PIE_COLORS.length];
+    ctx.beginPath();
+    ctx.moveTo(cx,cy);
+    ctx.arc(cx,cy,R,angle,angle+slice);
+    ctx.closePath();
+    ctx.fillStyle=color;
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(cx,cy,iR,0,Math.PI*2);
+    ctx.fillStyle='#fff';
+    ctx.fill();
+    angle+=slice;
+  });
+
+  // centre text
+  ctx.fillStyle='#1b2540';
+  ctx.font='bold 13px "DM Mono",monospace';
+  ctx.textAlign='center';
+  ctx.textBaseline='middle';
+  ctx.fillText(total+'次', cx, cy-6);
+  ctx.font='10px "Noto Sans TC",sans-serif';
+  ctx.fillStyle='#8a9ab8';
+  ctx.fillText('採購總計', cx, cy+8);
+
+  // legend
+  const leg=document.getElementById('pie-legend');
+  leg.innerHTML=entries.map(([sup,n],i)=>{
+    const pct=Math.round(n/total*100);
+    return `<div style="display:flex;align-items:center;gap:7px;">
+      <span style="width:10px;height:10px;border-radius:2px;background:${PIE_COLORS[i%PIE_COLORS.length]};flex-shrink:0;display:inline-block;"></span>
+      <span style="font-size:12px;flex:1;color:var(--text);font-weight:500;">${sup}</span>
+      <span style="font-size:11px;font-family:'DM Mono',monospace;color:var(--muted);">${n}次</span>
+      <span style="font-size:10px;font-family:'DM Mono',monospace;font-weight:600;color:${PIE_COLORS[i%PIE_COLORS.length]};min-width:32px;text-align:right;">${pct}%</span>
+    </div>`;
+  }).join('');
+}
+
+// ── INIT ──
+renderKPI();
+renderVol();
+renderPri();
+renderBuy();
+renderSB();
+renderMissing();
+renderTrend('雞蛋');
+initPieSelect();
+</script>
+
+
+</body></html>
