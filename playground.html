@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>🧩 儀表板架構 — Playground</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=DM+Mono:wght@400;500&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --bg:#eef1f8;--surface:#fff;--s2:#f5f7fc;--border:#dde3ef;
+  --text:#1b2540;--muted:#5a6a8a;--faint:#8a9ab8;
+  --green:#0c9060;--gbg:#e8f8f1;--gbd:#9ee6c8;
+  --red:#cc2d3a;--rbg:#fef0f1;--rbd:#f5b0b5;
+  --amber:#a86e00;--abg:#fdf3dc;--abd:#f0d080;
+  --blue:#1a4fc4;--bbg:#ecf1fd;--bbd:#b4c8f5;
+}
+body{font-family:'Noto Sans TC',sans-serif;color:var(--text);background:var(--bg);min-height:100vh;}
+
+/* TOPBAR */
+#topbar{position:sticky;top:0;z-index:100;height:54px;
+  background:linear-gradient(135deg,#1a3a8f 0%,#1a4fc4 50%,#2563eb 100%);
+  display:flex;align-items:center;padding:0 20px;gap:12px;
+  box-shadow:0 2px 12px rgba(26,63,156,.35);}
+.tb-logo{font-size:20px;}
+.tb-title{font-size:14px;font-weight:700;color:#fff;}
+.tb-sub{font-size:10px;color:rgba(255,255,255,.5);font-family:'DM Mono',monospace;margin-left:4px;}
+.spacer{flex:1;}
+.tb-btn{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.22);
+  color:#fff;padding:6px 13px;border-radius:7px;cursor:pointer;font-size:12px;
+  font-family:'Noto Sans TC',sans-serif;text-decoration:none;transition:.12s;}
+.tb-btn:hover{background:rgba(255,255,255,.28);}
+
+/* LAYOUT */
+#layout{display:flex;min-height:calc(100vh - 54px);}
+
+/* SIDEBAR */
+#sidebar{width:220px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);
+  padding:20px 0;position:sticky;top:54px;height:calc(100vh - 54px);overflow-y:auto;}
+.side-label{font-size:10px;color:var(--faint);font-weight:700;letter-spacing:.08em;
+  padding:0 18px 8px;margin-top:14px;}
+.side-label:first-child{margin-top:0;}
+.side-item{display:flex;align-items:center;gap:9px;padding:9px 18px;
+  font-size:13px;cursor:pointer;transition:.12s;border-left:3px solid transparent;color:var(--text);}
+.side-item:hover{background:var(--s2);}
+.side-item.active{background:var(--bbg);border-left-color:var(--blue);color:var(--blue);font-weight:600;}
+
+/* MAIN */
+#main{flex:1;padding:28px;display:flex;flex-direction:column;gap:32px;max-width:960px;}
+
+/* SECTION CARD */
+.pg-sec{background:var(--surface);border:1px solid var(--border);border-radius:16px;overflow:hidden;}
+.pg-hd{padding:20px 24px 16px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:12px;}
+.pg-icon{font-size:24px;flex-shrink:0;margin-top:2px;}
+.pg-meta{flex:1;}
+.pg-name{font-size:17px;font-weight:800;margin-bottom:4px;}
+.pg-desc{font-size:12px;color:var(--muted);line-height:1.6;}
+.pg-tag{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:600;
+  padding:2px 8px;border-radius:4px;margin-top:7px;letter-spacing:.02em;}
+.pg-body{padding:20px 24px;}
+
+/* PREVIEW BOX */
+.preview{background:var(--s2);border:1px solid var(--border);border-radius:10px;
+  padding:16px;margin-bottom:16px;}
+.preview-label{font-size:10px;color:var(--faint);font-weight:600;letter-spacing:.06em;margin-bottom:10px;}
+
+/* COMPONENT DEMOS */
+.kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:12px;
+  padding:14px 16px;border-left:3px solid currentColor;}
+.kpi-lbl{font-size:10px;color:var(--muted);margin-bottom:5px;font-weight:500;}
+.kpi-num{font-size:30px;font-weight:900;font-family:'DM Mono',monospace;line-height:1;}
+.kpi-sub{font-size:10px;color:var(--faint);margin-top:4px;}
+
+.vol-row{display:grid;grid-template-columns:60px 1fr 180px 62px;gap:8px;
+  align-items:center;padding:6px 8px;border-radius:8px;border:1px solid transparent;}
+.vol-row:hover{background:var(--s2);border-color:var(--border);}
+.vn{font-size:12px;font-weight:700;text-align:right;}
+.vtrack{height:22px;background:var(--s2);border-radius:5px;overflow:hidden;border:1px solid var(--border);}
+.vfill{height:100%;border-radius:4px;display:flex;align-items:center;justify-content:flex-end;
+  padding-right:7px;font-size:10px;font-family:'DM Mono',monospace;font-weight:700;color:#fff;}
+.vinfo{display:flex;flex-direction:column;gap:2px;}
+.vsup{font-size:10px;color:var(--muted);}
+.vprice{font-size:11px;font-family:'DM Mono',monospace;font-weight:600;}
+
+.badge{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:600;
+  padding:2px 7px;border-radius:4px;letter-spacing:.02em;}
+.b-r{background:var(--rbg);color:var(--red);border:1px solid var(--rbd);}
+.b-g{background:var(--gbg);color:var(--green);border:1px solid var(--gbd);}
+.b-a{background:var(--abg);color:var(--amber);border:1px solid var(--abd);}
+.b-b{background:var(--bbg);color:var(--blue);border:1px solid var(--bbd);}
+
+.tbl{width:100%;border-collapse:collapse;font-size:12px;}
+.tbl th{font-size:10px;color:var(--faint);font-weight:600;padding:0 0 8px;
+  border-bottom:1px solid var(--border);text-align:left;letter-spacing:.04em;}
+.tbl td{padding:7px 0;border-bottom:1px solid var(--s2);vertical-align:middle;}
+.tbl tr:last-child td{border-bottom:none;}
+.mono{font-family:'DM Mono',monospace;}
+.green{color:var(--green);}
+.red{color:var(--red);}
+.muted{color:var(--muted);}
+.rank{width:20px;height:20px;border-radius:50%;display:inline-flex;align-items:center;
+  justify-content:center;font-size:10px;font-weight:700;font-family:'DM Mono',monospace;}
+.r1{background:#fff0f0;color:#991b1b;}
+.r2{background:#fff4ed;color:#9a3412;}
+.r3{background:#fffaeb;color:#926000;}
+
+.miss-row{display:flex;gap:8px;align-items:center;padding:5px 0;
+  border-bottom:1px solid var(--s2);font-size:11px;}
+.miss-row:last-child{border-bottom:none;}
+
+/* DETAIL LIST */
+.dp-row{display:flex;justify-content:space-between;align-items:center;
+  padding:6px 0;border-bottom:1px solid var(--s2);font-size:12px;}
+.dp-row:last-child{border-bottom:none;}
+.dp-l{color:var(--muted);}
+.dp-v{font-family:'DM Mono',monospace;}
+.dp-stag{font-size:11px;padding:2px 7px;border-radius:4px;background:var(--bbg);color:var(--blue);border:1px solid var(--bbd);}
+
+/* CODE BLOCK */
+.code-block{background:#1b2540;border-radius:8px;padding:14px 16px;overflow-x:auto;}
+.code-block pre{font-family:'DM Mono',monospace;font-size:11px;color:#a9c2f5;line-height:1.7;white-space:pre;}
+.code-block .cm{color:#5a6a8a;}
+.code-block .ct{color:#79c0ff;}
+.code-block .cv{color:#ffa657;}
+.code-block .cs{color:#a5d6ff;}
+
+/* TECH TAGS */
+.tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;}
+.tag{font-size:10px;font-family:'DM Mono',monospace;padding:3px 8px;border-radius:4px;
+  background:var(--s2);border:1px solid var(--border);color:var(--muted);}
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <span class="tb-logo">🧩</span>
+  <div class="tb-title">儀表板架構 Playground<span class="tb-sub"> · 元件說明 · 共 9 種元件</span></div>
+  <div class="spacer"></div>
+  <a class="tb-btn" href="index.html">← 回到儀表板</a>
+</div>
+
+<div id="layout">
+  <div id="sidebar">
+    <div class="side-label">元件列表</div>
+    <div class="side-item active" onclick="go('kpi')">📊 KPI 數字卡</div>
+    <div class="side-item" onclick="go('vol')">📊 波動幅度圖</div>
+    <div class="side-item" onclick="go('table')">📋 資料表格</div>
+    <div class="side-item" onclick="go('spark')">📈 走勢折線圖</div>
+    <div class="side-item" onclick="go('dist')">📊 價格分布曲線</div>
+    <div class="side-item" onclick="go('pie')">🥧 圓餅 / 環形圖</div>
+    <div class="side-item" onclick="go('stacked')">🏪 堆疊橫條圖</div>
+    <div class="side-item" onclick="go('miss')">⚠️ 待確認資料</div>
+    <div class="side-item" onclick="go('panel')">📋 詳情滑出面板</div>
+  </div>
+
+  <div id="main">
+
+    <!-- KPI -->
+    <div class="pg-sec" id="kpi">
+      <div class="pg-hd">
+        <div class="pg-icon">📊</div>
+        <div class="pg-meta">
+          <div class="pg-name">KPI 數字卡</div>
+          <div class="pg-desc">儀表板最上方的四個核心指標卡片，讓用戶一眼掌握今日採購狀況。每張卡片包含指標名稱、大數字、補充說明，並用左側色條區分類別。</div>
+          <div class="tags">
+            <span class="tag">CSS Grid</span>
+            <span class="tag">border-left: 3px solid</span>
+            <span class="tag">font-weight: 900</span>
+          </div>
+        </div>
+      </div>
+      <div class="pg-body">
+        <div class="preview">
+          <div class="preview-label">PREVIEW</div>
+          <div class="kpi-row">
+            <div class="kpi" style="border-left-color:var(--blue)">
+              <div class="kpi-lbl">🥦 品項總數</div>
+              <div class="kpi-num" style="color:var(--blue)">20</div>
+              <div class="kpi-sub">8 供應商 · 116 筆記錄</div>
+            </div>
+            <div class="kpi" style="border-left-color:var(--red)">
+              <div class="kpi-lbl">🌡️ 高波動品項</div>
+              <div class="kpi-num" style="color:var(--red)">19</div>
+              <div class="kpi-sub">波動幅度 ≥ 80%</div>
+            </div>
+            <div class="kpi" style="border-left-color:var(--red)">
+              <div class="kpi-lbl">🔴 優先替換</div>
+              <div class="kpi-num" style="color:var(--red)">8</div>
+              <div class="kpi-sub">建議換供應商</div>
+            </div>
+            <div class="kpi" style="border-left-color:var(--green)">
+              <div class="kpi-lbl">🛒 建議加購</div>
+              <div class="kpi-num" style="color:var(--green)">10</div>
+              <div class="kpi-sub">低點進貨</div>
+            </div>
+          </div>
+        </div>
+        <div class="code-block"><pre><span class="cm">/* HTML 結構 */</span>
+<span class="ct">&lt;div</span> <span class="cv">class</span>=<span class="cs">"kpi"</span> <span class="cv">style</span>=<span class="cs">"border-left-color:var(--blue)"</span><span class="ct">&gt;</span>
+  <span class="ct">&lt;div</span> <span class="cv">class</span>=<span class="cs">"kpi-lbl"</span><span class="ct">&gt;</span>🥦 品項總數<span class="ct">&lt;/div&gt;</span>
+  <span class="ct">&lt;div</span> <span class="cv">class</span>=<span class="cs">"kpi-num"</span><span class="ct">&gt;</span>20<span class="ct">&lt;/div&gt;</span>
+  <span class="ct">&lt;div</span> <span class="cv">class</span>=<span class="cs">"kpi-sub"</span><span class="ct">&gt;</span>8 供應商<span class="ct">&lt;/div&gt;</span>
+<span class="ct">&lt;/div&gt;</span></pre></div>
+      </div>
+    </div>
+
+    <!-- VOL -->
+    <div class="pg-sec" id="vol">
+      <div class="pg-hd">
+        <div class="pg-icon">📊</div>
+        <div class="pg-meta">
+          <div class="pg-name">波動幅度圖</div>
+          <div class="pg-desc">每列代表一個食材，橫條長度 = 波動幅度（最高-最低）÷ 均價。右側顯示最新供應商與成交價。點擊列可查看詳細走勢。</div>
+          <div class="tags">
+            <span class="tag">CSS Grid</span>
+            <span class="tag">width transition</span>
+            <span class="tag">onclick handler</span>
+          </div>
+        </div>
+      </div>
+      <div class="pg-body">
+        <div class="preview">
+          <div class="preview-label">PREVIEW</div>
+          <div class="vol-row">
+            <div class="vn">起司</div>
+            <div class="vtrack"><div class="vfill" style="background:var(--red);width:100%">196%</div></div>
+            <div class="vinfo"><div class="vsup">益昌 · 04/04</div><div class="vprice" style="color:var(--green)">NT$102 (-20% vs 均)</div></div>
+            <div><span class="badge b-r">🔴 極高</span></div>
+          </div>
+          <div class="vol-row">
+            <div class="vn">高麗菜</div>
+            <div class="vtrack"><div class="vfill" style="background:var(--green);width:24%">48%</div></div>
+            <div class="vinfo"><div class="vsup">鮮供應 · 12/08</div><div class="vprice" style="color:var(--red)">NT$435 (+25% vs 均)</div></div>
+            <div><span class="badge b-g">🟢 穩定</span></div>
+          </div>
+        </div>
+        <div class="code-block"><pre><span class="cm">/* 四欄 Grid：品項名 | 橫條 | 供應商資訊 | 狀態 */</span>
+<span class="cv">grid-template-columns</span>: 60px 1fr 180px 62px;
+
+<span class="cm">/* 橫條用 JS 動態設定寬度（動畫效果）*/</span>
+<span class="cv">setTimeout</span>(() => {
+  el.<span class="cv">style</span>.width = el.dataset.w; <span class="cm">// e.g. "100%"</span>
+}, 60);</pre></div>
+      </div>
+    </div>
+
+    <!-- TABLE -->
+    <div class="pg-sec" id="table">
+      <div class="pg-hd">
+        <div class="pg-icon">📋</div>
+        <div class="pg-meta">
+          <div class="pg-name">資料表格</div>
+          <div class="pg-desc">用於「優先替換清單」和「建議加購清單」。標準 HTML table，第一欄用排名徽章，數字欄用等寬字體 DM Mono 顯示，顏色代表漲跌。</div>
+          <div class="tags">
+            <span class="tag">HTML table</span>
+            <span class="tag">DM Mono 字體</span>
+            <span class="tag">border-radius 徽章</span>
+          </div>
+        </div>
+      </div>
+      <div class="pg-body">
+        <div class="preview">
+          <div class="preview-label">PREVIEW</div>
+          <table class="tbl">
+            <thead><tr>
+              <th style="width:26px">#</th><th>品項</th><th>最新供應商</th>
+              <th>最新價</th><th>漲幅</th><th>建議換至</th><th>可省/單</th>
+            </tr></thead>
+            <tbody>
+              <tr>
+                <td><span class="rank r1">1</span></td>
+                <td style="font-weight:700">牛奶</td>
+                <td class="muted" style="font-size:11px">豐收行</td>
+                <td class="mono red">NT$468</td>
+                <td><span class="badge b-r">+71%</span></td>
+                <td style="font-size:11px;color:var(--green);font-weight:600">海洋直送</td>
+                <td class="mono green">-415</td>
+              </tr>
+              <tr>
+                <td><span class="rank r2">2</span></td>
+                <td style="font-weight:700">鮭魚</td>
+                <td class="muted" style="font-size:11px">豐收行</td>
+                <td class="mono red">NT$466</td>
+                <td><span class="badge b-r">+69%</span></td>
+                <td style="font-size:11px;color:var(--green);font-weight:600">海洋直送</td>
+                <td class="mono green">-388</td>
+              </tr>
+              <tr>
+                <td><span class="rank r3">3</span></td>
+                <td style="font-weight:700">紅蘿蔔</td>
+                <td class="muted" style="font-size:11px">長榮食材</td>
+                <td class="mono red">NT$335</td>
+                <td><span class="badge b-r">+65%</span></td>
+                <td style="font-size:11px;color:var(--green);font-weight:600">鮮供應</td>
+                <td class="mono green">-197</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="code-block"><pre><span class="cm">/* 排名徽章用圓形 span */</span>
+<span class="ct">&lt;span</span> <span class="cv">class</span>=<span class="cs">"rank r1"</span><span class="ct">&gt;</span>1<span class="ct">&lt;/span&gt;</span>
+
+<span class="cm">/* 顏色規則：漲 → red，跌 → green */</span>
+<span class="cv">color</span>: s.diff &gt; 0 ? <span class="cs">'var(--red)'</span> : <span class="cs">'var(--green)'</span>;</pre></div>
+      </div>
+    </div>
+
+    <!-- SPARKLINE -->
+    <div class="pg-sec" id="spark">
+      <div class="pg-hd">
+        <div class="pg-icon">📈</div>
+        <div class="pg-meta">
+          <div class="pg-name">走勢折線圖（SVG Sparkline）</div>
+          <div class="pg-desc">用純 SVG 畫出價格走勢折線，不依賴任何圖表函式庫。每個採購記錄是一個圓點（circle），滑過顯示日期與價格。橙色虛線是年度均價。</div>
+          <div class="tags">
+            <span class="tag">純 SVG</span>
+            <span class="tag">polyline</span>
+            <span class="tag">linearGradient fill</span>
+            <span class="tag">circle + title tooltip</span>
+          </div>
+        </div>
+      </div>
+      <div class="pg-body">
+        <div class="preview">
+          <div class="preview-label">PREVIEW（靜態示意）</div>
+          <svg width="100%" height="80" viewBox="0 0 332 78" style="display:block">
+            <defs><linearGradient id="sg2" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#1a4fc4" stop-opacity=".12"/>
+              <stop offset="100%" stop-color="#1a4fc4" stop-opacity="0"/>
+            </linearGradient></defs>
+            <polygon points="6,78 6,67 50,30 100,55 150,15 200,40 250,60 326,35 326,78" fill="url(#sg2)"/>
+            <polyline points="6,67 50,30 100,55 150,15 200,40 250,60 326,35" fill="none" stroke="#1a4fc4" stroke-width="2" stroke-linejoin="round"/>
+            <line x1="6" y1="45" x2="326" y2="45" stroke="#a86e00" stroke-width="1" stroke-dasharray="4,3"/>
+            <text x="328" y="45" font-size="8" fill="#a86e00" font-family="'DM Mono',monospace" dominant-baseline="middle">均</text>
+            <circle cx="6" cy="67" r="3.5" fill="#1a4fc4" stroke="white" stroke-width="1.5"><title>02/06 · NT$93</title></circle>
+            <circle cx="50" cy="30" r="3.5" fill="#1a4fc4" stroke="white" stroke-width="1.5"><title>03/08 · NT$394</title></circle>
+            <circle cx="100" cy="55" r="3.5" fill="#1a4fc4" stroke="white" stroke-width="1.5"><title>05/02 · NT$222</title></circle>
+            <circle cx="150" cy="15" r="3.5" fill="#1a4fc4" stroke="white" stroke-width="1.5"><title>06/10 · NT$467</title></circle>
+            <circle cx="200" cy="40" r="3.5" fill="#1a4fc4" stroke="white" stroke-width="1.5"><title>08/20 · NT$254</title></circle>
+            <circle cx="250" cy="60" r="3.5" fill="#1a4fc4" stroke="white" stroke-width="1.5"><title>11/03 · NT$111</title></circle>
+            <circle cx="326" cy="35" r="5.5" fill="#1a4fc4" stroke="white" stroke-width="2"/>
+          </svg>
+          <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--faint);margin-top:3px;font-family:'DM Mono',monospace">
+            <span>02/06</span><span style="color:#1a4fc4">最新 →</span><span>12/12</span>
+          </div>
+        </div>
+        <div class="code-block"><pre><span class="cm">/* JS 計算每個點的座標 */</span>
+<span class="cv">const</span> pts = rows.<span class="cv">map</span>((r, i) => [
+  (p + i / (rows.length-1) * (W - p*2)).<span class="cv">toFixed</span>(1),
+  (p + (1 - (r.price - mn) / rng) * (H - p*2)).<span class="cv">toFixed</span>(1)
+]);
+
+<span class="cm">/* 最後一點加大圓點表示「最新」*/</span>
+<span class="ct">&lt;circle</span> <span class="cv">cx</span>=<span class="cs">"…"</span> <span class="cv">cy</span>=<span class="cs">"…"</span> <span class="cv">r</span>=<span class="cs">"5.5"</span><span class="ct">/&gt;</span></pre></div>
+      </div>
+    </div>
+
+    <!-- DIST CURVE -->
+    <div class="pg-sec" id="dist">
+      <div class="pg-hd">
+        <div class="pg-icon">📊</div>
+        <div class="pg-meta">
+          <div class="pg-name">價格分布曲線（常態分布 SVG）</div>
+          <div class="pg-desc">用 JS 計算常態分布曲線座標，畫出鐘形曲線。橙色虛線是均價，藍色實心圓是最新採購位置，讓用戶直覺判斷現在買貴還是買便宜。</div>
+          <div class="tags">
+            <span class="tag">純 SVG</span>
+            <span class="tag">常態分布公式</span>
+            <span class="tag">101 個座標點</span>
+          </div>
+        </div>
+      </div>
+      <div class="pg-body">
+        <div class="preview">
+          <div class="preview-label">PREVIEW（靜態示意）</div>
+          <svg width="100%" height="88" viewBox="0 0 340 88" style="display:block">
+            <defs><linearGradient id="dg2" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#1a4fc4" stop-opacity=".14"/>
+              <stop offset="100%" stop-color="#1a4fc4" stop-opacity="0"/>
+            </linearGradient></defs>
+            <polygon points="18,70 18,67 60,60 100,48 140,28 170,18 200,22 240,40 280,58 322,67 322,70" fill="url(#dg2)"/>
+            <polyline points="18,67 60,60 100,48 140,28 170,18 200,22 240,40 280,58 322,67" fill="none" stroke="#1a4fc4" stroke-width="2"/>
+            <line x1="170" y1="18" x2="170" y2="70" stroke="#a86e00" stroke-width="1.5" stroke-dasharray="4,3"/>
+            <text x="170" y="80" text-anchor="middle" font-size="8" fill="#a86e00" font-family="'DM Mono',monospace">均價</text>
+            <circle cx="210" cy="20" r="5.5" fill="#1a4fc4" stroke="white" stroke-width="2"/>
+            <text x="210" y="12" text-anchor="middle" font-size="9" fill="#1a4fc4" font-family="'DM Mono',monospace" font-weight="700">最新</text>
+          </svg>
+          <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--faint);margin-top:3px;font-family:'DM Mono',monospace">
+            <span>低</span><span style="color:#1a4fc4">← 價格分布 →</span><span>高</span>
+          </div>
+        </div>
+        <div class="code-block"><pre><span class="cm">/* 常態分布公式 */</span>
+<span class="cv">const</span> norm = x =>
+  Math.<span class="cv">exp</span>(-0.5 * ((x - avg) / std) ** 2);
+
+<span class="cm">/* 101 個點畫出平滑曲線 */</span>
+<span class="cv">const</span> pts = Array.<span class="cv">from</span>({length: 101}, (_, i) => {
+  <span class="cv">const</span> x = xMin + i/100 * (xMax - xMin);
+  <span class="cv">return</span> [xCoord(x), yCoord(norm(x))];
+});</pre></div>
+      </div>
+    </div>
+
+    <!-- PIE -->
+    <div class="pg-sec" id="pie">
+      <div class="pg-hd">
+        <div class="pg-icon">🥧</div>
+        <div class="pg-meta">
+          <div class="pg-name">圓餅 / 環形圖（Canvas）</div>
+          <div class="pg-desc">用 HTML Canvas API 畫環形圖。中心留空（donut 效果）並顯示總採購次數。右側用 div 列表當圖例，顏色與 Canvas 對應。</div>
+          <div class="tags">
+            <span class="tag">Canvas 2D API</span>
+            <span class="tag">arc() 扇形</span>
+            <span class="tag">donut hole 技巧</span>
+          </div>
+        </div>
+      </div>
+      <div class="pg-body">
+        <div class="preview">
+          <div class="preview-label">PREVIEW</div>
+          <div style="display:flex;align-items:center;gap:16px;">
+            <canvas id="demo-pie" width="120" height="120" style="flex-shrink:0"></canvas>
+            <div style="display:flex;flex-direction:column;gap:5px;flex:1">
+              <div style="display:flex;align-items:center;gap:7px;">
+                <span style="width:10px;height:10px;border-radius:2px;background:#3b82f6;display:inline-block"></span>
+                <span style="font-size:12px;flex:1">海洋直送</span>
+                <span class="mono" style="font-size:11px;color:var(--muted)">3次</span>
+                <span class="mono" style="font-size:10px;font-weight:600;color:#3b82f6;min-width:32px;text-align:right">33%</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:7px;">
+                <span style="width:10px;height:10px;border-radius:2px;background:#10b981;display:inline-block"></span>
+                <span style="font-size:12px;flex:1">豐收行</span>
+                <span class="mono" style="font-size:11px;color:var(--muted)">3次</span>
+                <span class="mono" style="font-size:10px;font-weight:600;color:#10b981;min-width:32px;text-align:right">33%</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:7px;">
+                <span style="width:10px;height:10px;border-radius:2px;background:#f59e0b;display:inline-block"></span>
+                <span style="font-size:12px;flex:1">益昌</span>
+                <span class="mono" style="font-size:11px;color:var(--muted)">2次</span>
+                <span class="mono" style="font-size:10px;font-weight:600;color:#f59e0b;min-width:32px;text-align:right">22%</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:7px;">
+                <span style="width:10px;height:10px;border-radius:2px;background:#ef4444;display:inline-block"></span>
+                <span style="font-size:12px;flex:1">台農</span>
+                <span class="mono" style="font-size:11px;color:var(--muted)">1次</span>
+                <span class="mono" style="font-size:10px;font-weight:600;color:#ef4444;min-width:32px;text-align:right">11%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="code-block"><pre><span class="cm">/* 畫扇形 */</span>
+ctx.<span class="cv">beginPath</span>();
+ctx.<span class="cv">moveTo</span>(cx, cy);
+ctx.<span class="cv">arc</span>(cx, cy, R, startAngle, endAngle);
+ctx.<span class="cv">closePath</span>();
+ctx.<span class="cv">fillStyle</span> = color;
+ctx.<span class="cv">fill</span>();
+
+<span class="cm">/* 畫中心白圓（donut hole）*/</span>
+ctx.<span class="cv">beginPath</span>();
+ctx.<span class="cv">arc</span>(cx, cy, innerR, 0, Math.PI*2);
+ctx.<span class="cv">fillStyle</span> = <span class="cs">'#fff'</span>;
+ctx.<span class="cv">fill</span>();</pre></div>
+      </div>
+    </div>
+
+    <!-- STACKED -->
+    <div class="pg-sec" id="stacked">
+      <div class="pg-hd">
+        <div class="pg-icon">🏪</div>
+        <div class="pg-meta">
+          <div class="pg-name">堆疊橫條圖</div>
+          <div class="pg-desc">每行代表一個供應商，色塊代表不同食材的採購次數佔比。用 CSS flexbox 做水平堆疊，滑過色塊顯示 tooltip。</div>
+          <div class="tags">
+            <span class="tag">CSS Flexbox</span>
+            <span class="tag">width transition</span>
+            <span class="tag">mousemove tooltip</span>
+          </div>
+        </div>
+      </div>
+      <div class="pg-body">
+        <div class="preview">
+          <div class="preview-label">PREVIEW</div>
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div style="width:68px;font-size:12px;color:var(--muted);text-align:right;flex-shrink:0">海洋直送</div>
+              <div style="flex:1;display:flex;height:26px;border-radius:7px;overflow:hidden;background:var(--s2);border:1px solid var(--border);">
+                <div style="background:#3b82f6;width:25%"></div>
+                <div style="background:#10b981;width:16%"></div>
+                <div style="background:#f59e0b;width:20%"></div>
+                <div style="background:#ef4444;width:12%"></div>
+                <div style="background:#8b5cf6;width:27%"></div>
+              </div>
+              <div style="width:30px;font-size:11px;font-family:'DM Mono',monospace;color:var(--muted);text-align:right">24</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div style="width:68px;font-size:12px;color:var(--muted);text-align:right;flex-shrink:0">大全農產</div>
+              <div style="flex:1;display:flex;height:26px;border-radius:7px;overflow:hidden;background:var(--s2);border:1px solid var(--border);">
+                <div style="background:#3b82f6;width:10%"></div>
+                <div style="background:#84cc16;width:35%"></div>
+                <div style="background:#ec4899;width:20%"></div>
+                <div style="background:#a78bfa;width:25%"></div>
+                <div style="background:#34d399;width:10%"></div>
+              </div>
+              <div style="width:30px;font-size:11px;font-family:'DM Mono',monospace;color:var(--muted);text-align:right">19</div>
+            </div>
+          </div>
+        </div>
+        <div class="code-block"><pre><span class="cm">/* 色塊用 data 屬性存 tooltip 資訊 */</span>
+<span class="ct">&lt;div</span> <span class="cv">class</span>=<span class="cs">"sb-seg"</span>
+     <span class="cv">data-w</span>=<span class="cs">"16.67%"</span>
+     <span class="cv">data-lbl</span>=<span class="cs">"菇類 · 4次"</span><span class="ct">&gt;&lt;/div&gt;</span>
+
+<span class="cm">/* JS 套用動畫寬度 + 綁定 tooltip */</span>
+el.<span class="cv">style</span>.width = el.dataset.w;
+el.<span class="cv">addEventListener</span>(<span class="cs">'mouseenter'</span>, () => {
+  tip.textContent = el.dataset.lbl;
+  tip.<span class="cv">style</span>.opacity = <span class="cs">'1'</span>;
+});</pre></div>
+      </div>
+    </div>
+
+    <!-- MISSING -->
+    <div class="pg-sec" id="miss">
+      <div class="pg-hd">
+        <div class="pg-icon">⚠️</div>
+        <div class="pg-meta">
+          <div class="pg-name">待確認資料清單</div>
+          <div class="pg-desc">顯示原始資料中有缺漏欄位的記錄（缺日期、缺食材、缺供應商、缺單價），用不同顏色徽章區分問題類型，已隔離未納入分析。</div>
+          <div class="tags">
+            <span class="tag">條件判斷徽章顏色</span>
+            <span class="tag">flex 水平排列</span>
+          </div>
+        </div>
+      </div>
+      <div class="pg-body">
+        <div class="preview">
+          <div class="preview-label">PREVIEW</div>
+          <div class="miss-row">
+            <span class="badge b-r" style="width:60px;justify-content:center">📅 缺日期</span>
+            <span class="muted mono" style="min-width:40px;font-size:11px">—</span>
+            <span style="flex:1;font-size:12px">白米</span>
+            <span class="muted mono" style="font-size:11px">NT$191</span>
+          </div>
+          <div class="miss-row">
+            <span class="badge b-a" style="width:60px;justify-content:center">🥗 缺食材</span>
+            <span class="muted mono" style="min-width:40px;font-size:11px">06/06</span>
+            <span style="flex:1;font-size:12px">—</span>
+            <span class="muted mono" style="font-size:11px">NT$271</span>
+          </div>
+          <div class="miss-row">
+            <span class="badge b-b" style="width:60px;justify-content:center">🏪 缺供應商</span>
+            <span class="muted mono" style="min-width:40px;font-size:11px">10/14</span>
+            <span style="flex:1;font-size:12px">鮭魚</span>
+            <span class="muted mono" style="font-size:11px">NT$285</span>
+          </div>
+          <div class="miss-row">
+            <span class="badge b-r" style="width:60px;justify-content:center">💰 缺單價</span>
+            <span class="muted mono" style="min-width:40px;font-size:11px">10/22</span>
+            <span style="flex:1;font-size:12px">牛奶</span>
+            <span class="muted mono" style="font-size:11px">—</span>
+          </div>
+        </div>
+        <div class="code-block"><pre><span class="cm">/* 問題類型對應徽章顏色 */</span>
+<span class="cv">const</span> bg = {
+  <span class="cs">'缺日期'</span>: <span class="cs">'b-r'</span>,
+  <span class="cs">'缺食材'</span>: <span class="cs">'b-a'</span>,
+  <span class="cs">'缺供應商'</span>: <span class="cs">'b-b'</span>,
+  <span class="cs">'缺單價'</span>: <span class="cs">'b-r'</span>
+};</pre></div>
+      </div>
+    </div>
+
+    <!-- DETAIL PANEL -->
+    <div class="pg-sec" id="panel">
+      <div class="pg-hd">
+        <div class="pg-icon">📋</div>
+        <div class="pg-meta">
+          <div class="pg-name">詳情滑出面板（Slide-out Panel）</div>
+          <div class="pg-desc">點擊任何品項列，右側面板從畫面外滑入（CSS transition right 屬性）。包含價格統計、迷你折線圖、完整採購記錄、換供應商節省試算。</div>
+          <div class="tags">
+            <span class="tag">position: fixed</span>
+            <span class="tag">right: -405px → 0</span>
+            <span class="tag">CSS transition</span>
+          </div>
+        </div>
+      </div>
+      <div class="pg-body">
+        <div class="preview">
+          <div class="preview-label">PREVIEW（簡化）</div>
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;">
+            <div style="font-size:18px;font-weight:800;margin-bottom:10px">🥚 雞蛋</div>
+            <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:12px">
+              <span class="badge b-r">📊 波動 150%</span>
+              <span class="badge b-r">🔴 優先替換</span>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:12px">
+              <div style="background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:10px">
+                <div style="font-size:10px;color:var(--muted);margin-bottom:3px">💰 最新採購價</div>
+                <div class="mono" style="font-size:17px;font-weight:700;color:var(--red)">NT$286</div>
+              </div>
+              <div style="background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:10px">
+                <div style="font-size:10px;color:var(--muted);margin-bottom:3px">📈 vs 年度均價</div>
+                <div class="mono" style="font-size:17px;font-weight:700;color:var(--red)">+8%</div>
+              </div>
+            </div>
+            <div class="dp-row"><span class="dp-l">最新供應商</span><span class="dp-stag">海洋直送</span></div>
+            <div class="dp-row"><span class="dp-l">歷史最低供應商</span><span class="dp-stag">大全農產</span></div>
+            <div class="dp-row"><span class="dp-l">💡 換供應商可省</span><span class="dp-v" style="color:var(--green);font-weight:700">NT$218/單</span></div>
+          </div>
+        </div>
+        <div class="code-block"><pre><span class="cm">/* 面板預設在畫面右側外面 */</span>
+<span class="cv">#dp</span> {
+  position: fixed;
+  right: -405px;   <span class="cm">/* 隱藏 */</span>
+  transition: right .32s cubic-bezier(.16,1,.3,1);
+}
+<span class="cm">/* 加上 .open class 時滑入 */</span>
+<span class="cv">#dp.open</span> { right: 0; }</pre></div>
+      </div>
+    </div>
+
+  </div><!-- /main -->
+</div><!-- /layout -->
+
+<script>
+// 畫 Demo Pie Chart
+const c = document.getElementById('demo-pie');
+const ctx = c.getContext('2d');
+const W=120, H=120, cx=60, cy=60, R=52, iR=22;
+const slices = [{n:3,c:'#3b82f6'},{n:3,c:'#10b981'},{n:2,c:'#f59e0b'},{n:1,c:'#ef4444'}];
+const total = slices.reduce((a,b)=>a+b.n,0);
+let ang = -Math.PI/2;
+slices.forEach(s=>{
+  const a = s.n/total * Math.PI*2;
+  ctx.beginPath(); ctx.moveTo(cx,cy);
+  ctx.arc(cx,cy,R,ang,ang+a); ctx.closePath();
+  ctx.fillStyle=s.c; ctx.fill(); ang+=a;
+});
+ctx.beginPath(); ctx.arc(cx,cy,iR,0,Math.PI*2);
+ctx.fillStyle='#fff'; ctx.fill();
+ctx.fillStyle='#1b2540'; ctx.font='bold 12px "DM Mono",monospace';
+ctx.textAlign='center'; ctx.textBaseline='middle';
+ctx.fillText('9次', cx, cy-6);
+ctx.font='9px "Noto Sans TC",sans-serif';
+ctx.fillStyle='#8a9ab8'; ctx.fillText('採購總計', cx, cy+8);
+
+// Sidebar active state
+function go(id){
+  document.getElementById(id).scrollIntoView({behavior:'smooth', block:'start'});
+  document.querySelectorAll('.side-item').forEach(el=>el.classList.remove('active'));
+  event.currentTarget.classList.add('active');
+}
+
+// Auto-highlight sidebar on scroll
+const sections = ['kpi','vol','table','spark','dist','pie','stacked','miss','panel'];
+const observer = new IntersectionObserver(entries=>{
+  entries.forEach(e=>{
+    if(e.isIntersecting){
+      const idx = sections.indexOf(e.target.id);
+      if(idx>=0){
+        document.querySelectorAll('.side-item').forEach((el,i)=>
+          el.classList.toggle('active', i===idx));
+      }
+    }
+  });
+},{threshold:0.3, rootMargin:'-54px 0px 0px 0px'});
+sections.forEach(id=>{
+  const el=document.getElementById(id);
+  if(el) observer.observe(el);
+});
+</script>
+</body>
+</html>
